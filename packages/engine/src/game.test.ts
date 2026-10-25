@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newGame, places, recordHand, windScores, type GameState } from "./game";
+
+const KEEP = { dealerKeepsDeal: true };
 import type { HandResult, Seat } from "./types";
 import { scoreWin } from "./scoring";
 
@@ -21,15 +23,24 @@ function play(game: GameState, ...results: HandResult[]) {
 }
 
 describe("game", () => {
-  it("keeps the deal after a dealer win or a draw, passes it otherwise", () => {
+  it("by default passes the deal on after every hand, so a wind is four hands", () => {
     const g = newGame(2);
+    expect(play(g, win(2, 0)).game.dealer).toBe(3);
+    expect(play(g, draw).game.dealer).toBe(3);
+    const wind = play(g, draw, draw, win(2, null), draw);
+    expect(wind.windOver).toBe(true);
+    expect(wind.game).toMatchObject({ dealer: 2, prevailingWind: 1, windNumber: 2 });
+  });
+
+  it("with dealerKeepsDeal, keeps the deal after a dealer win or a draw, passes it otherwise", () => {
+    const g = newGame(2, KEEP);
     expect(play(g, win(2, 0)).game.dealer).toBe(2);
     expect(play(g, draw).game.dealer).toBe(2);
     expect(play(g, win(1, null)).game.dealer).toBe(3);
   });
 
   it("ends a wind when the deal passes back to the first dealer, wrapping after North", () => {
-    let g = newGame(1);
+    let g = newGame(1, KEEP);
     // 1 → 2 → 3 → 0 → 1, with a dealer repeat and a draw along the way: 6 hands.
     let r = play(g, win(0, 1), win(2, 3), draw, win(1, null), win(0, 2));
     expect(r.windOver).toBe(false);

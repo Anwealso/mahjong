@@ -11,11 +11,20 @@ export interface HandRecord {
   result: HandResult;
 }
 
+/** Chosen by the host before a game starts; fixed for the whole game. See docs/game-flow.md. */
+export interface GameSettings {
+  /** Dealer keeps the deal after a dealer win or a draw. Off: the deal passes on after every hand. */
+  dealerKeepsDeal: boolean;
+}
+
+export const DEFAULT_GAME_SETTINGS: GameSettings = { dealerKeepsDeal: false };
+
 /**
  * A whole game: dealer rotation, prevailing winds, and running scores per seat. Games are open-ended:
  * after each wind the players decide whether to continue (see docs/game-flow.md).
  */
 export interface GameState {
+  settings: GameSettings;
   /** Dealt first in the game. A wind ends when the deal passes back to this seat. */
   firstDealer: Seat;
   dealer: Seat;
@@ -28,8 +37,9 @@ export interface GameState {
   history: HandRecord[];
 }
 
-export function newGame(firstDealer: Seat): GameState {
+export function newGame(firstDealer: Seat, settings: GameSettings = DEFAULT_GAME_SETTINGS): GameState {
   return {
+    settings,
     firstDealer,
     dealer: firstDealer,
     prevailingWind: 0,
@@ -41,8 +51,8 @@ export function newGame(firstDealer: Seat): GameState {
 }
 
 /**
- * Record a finished hand: add its payments, and rotate the deal. The dealer keeps the deal after a dealer
- * win or a draw; otherwise it passes on. `windOver` is true when the deal has passed all the way round
+ * Record a finished hand: add its payments, and rotate the deal. The deal passes on after every hand,
+ * unless `dealerKeepsDeal` is set and the dealer won or the hand was a draw. `windOver` is true when the deal has passed all the way round
  * back to the first dealer, which moves the prevailing wind on (wrapping after North).
  */
 export function recordHand(game: GameState, result: HandResult): { game: GameState; windOver: boolean } {
@@ -53,7 +63,7 @@ export function recordHand(game: GameState, result: HandResult): { game: GameSta
     dealer: game.dealer,
     result,
   };
-  const keepsDeal = result.kind === "draw" || result.winner === game.dealer;
+  const keepsDeal = game.settings.dealerKeepsDeal && (result.kind === "draw" || result.winner === game.dealer);
   const dealer = keepsDeal ? game.dealer : nextSeat(game.dealer);
   const windOver = !keepsDeal && dealer === game.firstDealer;
   return {

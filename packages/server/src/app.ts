@@ -5,6 +5,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import type { Connection } from "./controllers";
 import { RoomRegistry } from "./registry";
 import { DEFAULT_ROOM_OPTIONS, type Room, type RoomError, type RoomOptions } from "./room";
+import { serveStatic } from "./static";
 
 export interface ServerOptions {
   /** 0 picks a free port (tests). */
@@ -15,6 +16,8 @@ export interface ServerOptions {
   maxRooms?: number;
   /** New rooms one connection may create per minute. */
   roomsPerMinute?: number;
+  /** Serve the built client from this directory (production). */
+  staticDir?: string;
 }
 
 export interface RunningServer {
@@ -31,6 +34,7 @@ export async function startServer({
   pingMs = 25_000,
   maxRooms = 100,
   roomsPerMinute = 5,
+  staticDir,
 }: ServerOptions): Promise<RunningServer> {
   const registry = new RoomRegistry(room, undefined, maxRooms);
 
@@ -40,6 +44,7 @@ export async function startServer({
       res.end(JSON.stringify({ ok: true, rooms: registry.size }));
       return;
     }
+    if (staticDir && serveStatic(staticDir, req, res)) return;
     res.writeHead(404).end();
   });
 

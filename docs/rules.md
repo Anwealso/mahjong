@@ -49,16 +49,22 @@ honors as repeated codes: `123c 456d 789b EEE RR`.
 | **Exposed kong** (槓) | Anyone | 3 of the same kind | Expose the kong, take a replacement draw, then discard |
 | **Chow** (上) | **Only the next player** (the discarder is on their left) | 2 tiles completing a run of 3 in one suit | Expose the chow, then discard (no draw) |
 
-**Priority:** win > pung / kong > chow. If two players want the same discard for different claims, the
-higher-priority claim wins. Play then continues from the claimer, so turns can be skipped.
-
-**Multiple winners on one discard** (configurable, `multipleWinners`):
-- `headBump` (default, 截糊): only the claimant closest in turn order after the discarder wins.
-- `all`: every claimant wins and the discarder pays each of them.
+**First come, first served.** There's no ranking between claim types: whoever claims the discard first gets
+it, whether that's a win, pung, kong, or chow. The server handles one message at a time, so there are
+never ties. Play then continues from the claimer, so turns can be skipped.
 
 **Claim timing:** after each discard the server opens a claim window of **at most 5 seconds**. Players
-with no legal claim pass automatically. The window closes **as soon as every eligible player has
-answered**, or when the 5 seconds run out; anyone who hasn't answered by then passes.
+with no legal claim pass automatically. The window closes as soon as **someone claims**, as soon as **every
+eligible player has passed**, or when the 5 seconds run out (anyone who hasn't answered passes).
+
+**Selecting tiles.** Nothing is ever formed automatically. To claim a pung, kong, or chow, the player selects
+the tiles from their own hand and then chooses the claim. Concealed kongs work the same way (select all
+four, then declare). The server checks that the selected tiles are in that player's hand and form the set
+with the claimed tile.
+
+**Arranging your hand.** Players can drag their concealed tiles into any order, for example to group partly
+formed sets. This is purely on the player's own screen: the order isn't sent to the server or shown to
+anyone.
 
 **Passing up a win is allowed.** A win is never automatic: a player who could win on a discard can pass,
 and a player who self-draws a winning tile can just discard instead. There's no penalty for passing, and
@@ -130,7 +136,6 @@ All of them would plug into the separate scoring module or `RuleConfig` without 
 | Kong (槓) | 4 identical tiles; takes a replacement draw |
 | Exposed / concealed | Whether a set is shown on the table or hidden in hand |
 | Self-draw (自摸) | Winning with a tile you drew yourself |
-| Head bump (截糊) | When two players can win on one discard, the one closer in turn order after the discarder wins |
 | Waiting / ready | One tile away from a winning hand |
 | Wall | The face-down stack of tiles left to draw |
 | Prevailing wind | The wind of the current round |

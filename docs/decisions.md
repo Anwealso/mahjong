@@ -172,7 +172,7 @@ SVG tile set comes later (check its license before adding it).
 
 **Status:** accepted · 2026-10-25
 
-- A hand ends at the first win. Head bump means there's only ever one winner (by default). A game is
+- A hand ends at the first win. Only one player can claim a discard ([D15](#d15-claims-are-first-come-first-served)), so there's only ever one winner. A game is
   several hands with running points, dealer rotation, and prevailing-wind rounds (see [rules.md](rules.md)).
 - The wall plays to the last tile with nothing held back. When it runs out, the hand is a draw.
 - Declared sets are locked. Discarding any remaining hand tile straight after a claim is allowed (no
@@ -180,3 +180,29 @@ SVG tile set comes later (check its license before adding it).
 
 **Considered:** one hand = one game (simpler, but the group wants running points); keeping 13–16 tiles back
 at the end of the wall.
+
+## D15. Claims are first come, first served
+
+**Status:** accepted · 2026-10-25 · supersedes the claim-priority and head-bump parts of D1 and the
+original rules
+
+The first valid claim on a discard takes it. There's no ranking (win > pung/kong > chow), no head bump,
+and no multiple winners. The `multipleWinners` setting is gone.
+
+**Why:** simpler to understand and to play: claim it and it's yours.
+
+**Trade-off accepted:** a player on a slower connection is at a slight disadvantage for contested
+discards. That's negligible for friends on a call. The server processes messages one at a time, so
+there are never ties.
+
+## D16. Players select tiles to form sets; hand order is client-side only
+
+**Status:** accepted · 2026-10-25
+
+- Nothing is formed automatically. Pung, kong, and chow claims (and concealed kongs) carry the exact hand
+  tiles the player selected. The engine validates them (in hand, distinct, right kinds) and never picks
+  tiles on the player's behalf. `legalActions` lists each option with example tiles so the client knows
+  which buttons to enable; any equivalent selection is accepted.
+- Players can freely reorder their concealed tiles to group partly formed sets. That order lives only in
+  the client (and survives updates by tracking `TileId`s). The server keeps hands sorted and never sees
+  the order.

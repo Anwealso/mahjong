@@ -113,7 +113,7 @@ Swapping a seat between human, autopilot, and bot is just replacing its controll
    │ AwaitDiscard │──────────▶│ ClaimWindow  │─┼──────────────▶ next player draws ──┐
    │ (turn seat)  │            │ (other seats)│ │                                    │
    └──────────────┘            └──────────────┘ │                                    │
-     ▲  │  │ concealed/added kong      │ resolve by priority                         │
+     ▲  │  │ concealed/added kong      │ first claim takes it                        │
      │  │  └─ replacement draw ─▶(self)│                                             │
      │  │ self-draw win                ├─ chow/pung ──▶ AwaitDiscard (claimer)       │
      │  ▼                              ├─ kong ───────▶ replacement draw → AwaitDiscard
@@ -157,8 +157,9 @@ early once every seat that *can* claim has answered. Seats with no legal claim a
 and if nobody can claim at all, no window opens and the next player draws straight away (see
 [D10](decisions.md#d10-claim-window-at-most-5-seconds-closes-early)).
 
-Claim resolution: a win beats pung/kong, which beats chow. Ties between winners are settled by turn order after the
-discarder (head bump), unless `multipleWinners: "all"`.
+Claim resolution is **first come, first served** ([D15](decisions.md#d15-claims-are-first-come-first-served)):
+the first valid claim takes the tile and closes the window immediately. Pung, kong, chow, and concealed
+kong actions carry the exact hand tiles the player selected ([D16](decisions.md#d16-players-select-tiles-to-form-sets-hand-order-is-client-side-only)).
 
 ### Scoring
 
@@ -167,7 +168,7 @@ payment from [rules.md](rules.md). It's isolated so faan scoring can replace it 
 
 ### Tests
 
-- `hand.test.ts`: one scenario per rule, built with `stackWall` (priority, head bump, chow only from the
+- `hand.test.ts`: one scenario per rule, built with `stackWall` (first-come claims, tile selection, chow only from the
   left, all kong types, robbing, locked sets, passing up a win, end of wall, validation, views).
 - `playout.test.ts`: 800 random hands (default rules and every option on). After every move it checks
   that every tile is in exactly one place, hand sizes are right, the game never gets stuck, payments sum
@@ -213,6 +214,10 @@ Server → client:
 - Screens: **Join** (room code + nickname) → **Lobby** (pick a seat, start) → **Table**.
 - Table layout: your hand along the bottom; opponents' face-down hands and exposed melds to the left, top,
   and right; a discard pond per player in the middle; wall count and prevailing wind in the center.
+- **Your hand is yours to arrange:** drag tiles into any order to group partly formed sets. The order is
+  kept client-side by `TileId`. New tiles are added at the end, and the order is never sent to the server.
+- **Select, then declare:** to claim a pung, kong, or chow (or declare a concealed kong), select the tiles in
+  your hand, then press the button. The action carries exactly those tiles. Nothing is formed automatically.
 - Action bar: rendered straight from `legalActions`, with a countdown ring during claim windows. Keyboard
   shortcuts for speed (e.g. `P` pung, `C` chow, `K` kong, `H` win, `Space` pass).
 - Tiles: CSS boxes with labels in v1, swapped for an open-source SVG tile set later.

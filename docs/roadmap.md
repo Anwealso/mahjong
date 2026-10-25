@@ -22,7 +22,7 @@ Milestones in build order. Each one should end with passing tests and something 
 ## 2. Engine: hand state machine ✅
 
 - `GameState`, `Action`, `GameEvent`, and `PlayerView` types.
-- Deal; draw; discard; claim window with priority and head bump; chow, pung, and all three kong types with
+- Deal; draw; discard; first-come claim window; chow, pung, and all three kong types with
   replacement draws; self-drawn win; draw hand when the wall runs out.
 - `legalActions(state, seat)`, `applyAction(...)`, `closeClaimWindow(state)`, `projectView(state, seat)`.
 - Chicken Hand flat payment (`scoreHand`).
@@ -43,6 +43,7 @@ Milestones in build order. Each one should end with passing tests and something 
 - Zustand store and WebSocket connection module (`client/src/net/`).
 - Screens: Join → Lobby → Table.
 - Table: your hand, opponents' melds and face-down hands, discard ponds, wall count, prevailing wind.
+- Drag to reorder your hand (client-side only); select tiles, then declare pung, kong, or chow.
 - Action bar built from `legalActions`, claim countdown, keyboard shortcuts.
 
 ## 5. Full game

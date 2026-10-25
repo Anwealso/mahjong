@@ -1,5 +1,6 @@
 import type { Contestant } from "./arena";
 import { easyPolicy } from "./easy";
+import { hardPolicy } from "./hard";
 import { mediumPolicy } from "./medium";
 import type { BotLevel, Policy } from "./policy";
 import { randomPolicy } from "./random";
@@ -12,7 +13,7 @@ export function policyFor(level: BotLevel | "random", random: () => number = Mat
     case "medium":
       return mediumPolicy();
     case "hard":
-      return mediumPolicy(); // until Hard exists
+      return hardPolicy({ random });
     case "random":
       return randomPolicy(random);
   }

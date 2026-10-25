@@ -17,6 +17,14 @@ describe("levels", () => {
   }, 30_000);
 });
 
+describe("hard", () => {
+  it("deals in less than Medium would in the same seat, on the same deals", () => {
+    const hard = runArena(["hard", "medium", "medium", "medium"].map(contestant), 300, 8).stats[0]!;
+    const medium = runArena(["medium", "medium", "medium", "medium"].map(contestant), 300, 8).stats[0]!;
+    expect(hard.dealIns).toBeLessThan(medium.dealIns);
+  }, 60_000);
+});
+
 describe("medium", () => {
   it("throws a lone honour before breaking up a useful shape", () => {
     // Seat 0 holds three sets, 1-2 of dots, a pair, and one useless North.

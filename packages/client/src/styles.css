@@ -242,3 +242,87 @@ kbd {
 .tile[data-kind="Wh"] { box-shadow: inset 0 0 0 6px #fffdf6, inset 0 0 0 8px #1f4fa3, 0 3px 0 #c9bf9f, 0 5px 8px rgb(0 0 0 / 0.35); }
 .tile-sm[data-kind="Wh"] { box-shadow: inset 0 0 0 4px #fffdf6, inset 0 0 0 5px #1f4fa3, 0 2px 0 #c9bf9f; }
 .tile-xs[data-kind="Wh"] { box-shadow: inset 0 0 0 3px #fffdf6, inset 0 0 0 4px #1f4fa3, 0 2px 0 #c9bf9f; }
+
+/* ---- scores, prompts, wind break, celebration ------------------------------------------------------- */
+
+h2 { font-size: 1.1rem; margin: 28px 0 10px; }
+button.small { padding: 2px 8px; font-size: 0.8rem; margin-left: 8px; }
+.seat-score { font-family: ui-monospace, monospace; font-size: 0.85rem; padding: 1px 6px; border-radius: 4px; background: rgb(0 0 0 / 0.3); }
+.seat-actions { display: flex; gap: 8px; }
+
+.scoreboard { border-collapse: collapse; min-width: 320px; }
+.scoreboard td { padding: 6px 12px; border-bottom: 1px solid rgb(255 255 255 / 0.08); }
+.scoreboard tr.mine td { color: var(--gold); }
+.scoreboard .place { opacity: 0.7; width: 3em; }
+.scoreboard th { padding: 0 12px 4px; font-size: 0.75rem; font-weight: 500; opacity: 0.6; text-align: right; }
+.scoreboard .who .tag { margin-left: 8px; }
+.scoreboard .points, .scoreboard .total { font-family: ui-monospace, monospace; text-align: right; }
+.scoreboard .total { opacity: 0.75; }
+.vote-yes { color: #80ed99; }
+
+.prompts { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); display: grid; gap: 8px; z-index: 60; }
+.prompt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: #3b2a06;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.4);
+}
+.leave-table { position: fixed; top: 12px; right: 12px; }
+.hand-over p { margin: 12px 0 0; }
+.hand-over .scoreboard { min-width: 280px; }
+
+.wind-break { position: relative; text-align: center; }
+.wind-break .scoreboard, .celebration .scoreboard { margin: 0 auto; }
+.wind-break .buttons, .celebration .buttons { justify-content: center; }
+.wind-logo {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  font-size: min(70vh, 60vw);
+  font-weight: 900;
+  color: rgb(255 255 255 / 0.05);
+  pointer-events: none;
+  z-index: -1;
+}
+.podium { display: flex; justify-content: center; align-items: flex-end; gap: 12px; margin: 28px 0 8px; }
+.step { display: grid; justify-items: center; gap: 4px; width: 130px; }
+.step-name { font-weight: 600; }
+.step-points { font-family: ui-monospace, monospace; opacity: 0.8; }
+.step-block {
+  width: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 8px 8px 0 0;
+  font-size: 1.6rem;
+  font-weight: 800;
+  background: rgb(255 255 255 / 0.12);
+}
+.step-1 .step-block { height: 110px; background: #c9a227; color: #1b1b1b; }
+.step-2 .step-block { height: 80px; background: #a7adb5; color: #1b1b1b; }
+.step-3 .step-block { height: 56px; background: #a0673a; color: #1b1b1b; }
+.step-4 .step-block { height: 36px; }
+
+.celebration { text-align: center; }
+.winners { display: flex; justify-content: center; gap: 48px; margin: 24px 0; }
+.winner { display: grid; gap: 6px; }
+.medal { font-size: 4rem; }
+.winner-name { font-size: 1.6rem; font-weight: 800; }
+.first .winner-name { color: var(--gold); }
+.winner-points { font-family: ui-monospace, monospace; opacity: 0.85; }
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: -1; }
+.confetti span {
+  position: absolute;
+  top: -20px;
+  border-radius: 2px;
+  animation-name: confetti-fall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes confetti-fall {
+  from { transform: translateY(0) rotate(0deg); }
+  to { transform: translateY(110vh) rotate(720deg); }
+}

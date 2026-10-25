@@ -1,20 +1,23 @@
 import { kindCode, kindOf, type PublicPlayer, type Seat, type TileId, type Wind } from "@mahjong/engine";
 import { useEffect, useState } from "react";
+import { useRoom } from "../net/room";
 import { useStore, type GameSnapshot } from "../net/store";
+import { formatPoints, WIND_GLYPHS, WIND_NAMES } from "../screens/Scoreboard";
 import { Tile } from "../Tile";
+import { HandOver } from "./HandOver";
+import { HostPrompts } from "./HostPrompts";
 import { Melds } from "./Melds";
 import { MyHand } from "./MyHand";
 import { useTableControls, type Command } from "./useTableControls";
 
-const WIND_GLYPHS = ["東", "南", "西", "北"] as const;
-const WIND_NAMES = ["East", "South", "West", "North"] as const;
 /** Where each seat sits relative to you. Play goes counter-clockwise: the next player is on your right. */
 const POSITIONS = ["bottom", "right", "top", "left"] as const;
 const position = (seat: Seat, me: Seat) => POSITIONS[(seat - me + 4) % 4]!;
 
 export function Table({ game }: { game: GameSnapshot }) {
   const session = useStore((s) => s.session)!;
-  const lobby = useStore((s) => s.lobby);
+  const room = useRoom()!;
+  const send = useStore((s) => s.send);
   const act = useStore((s) => s.act);
   const lastDiscard = useStore((s) => s.lastDiscard);
   const { view } = game;
@@ -27,10 +30,10 @@ export function Table({ game }: { game: GameSnapshot }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const nameOf = (seat: Seat) => {
-    const id = lobby?.seats[seat];
-    const name = lobby?.members.find((m) => m.id === id)?.name ?? `Seat ${seat + 1}`;
-    return seat === me ? `${name} (you)` : name;
+  const nameOf = (seat: Seat) => (seat === me ? `${room.nameOf(seat)} (you)` : room.nameOf(seat));
+  const scores = room.lobby.game?.scores;
+  const leave = () => {
+    if (confirm("Leave the table? The host can give your seat to a bot.")) send({ t: "leaveSeat" });
   };
   const turnSeat =
     view.phase.kind === "awaitDiscard" || view.phase.kind === "claimed" ? view.phase.seat : null;
@@ -44,7 +47,13 @@ export function Table({ game }: { game: GameSnapshot }) {
         const pos = position(p.seat, me);
         return (
           <div key={p.seat} className={`seat seat-${pos}${turnSeat === p.seat ? " seat-turn" : ""}`}>
-            <SeatLabel name={nameOf(p.seat)} wind={p.wind} dealer={p.seat === view.dealer} />
+            <SeatLabel
+              name={nameOf(p.seat)}
+              wind={p.wind}
+              dealer={p.seat === view.dealer}
+              score={scores?.[p.seat] ?? 0}
+              host={room.lobby.seats[p.seat] === room.lobby.hostId}
+            />
             {pos === "bottom" ? (
               <MyHand controls={controls} melds={p.melds} lastDrawn={view.lastDrawn} />
             ) : (
@@ -65,23 +74,37 @@ export function Table({ game }: { game: GameSnapshot }) {
             onClaim={canClaim ? () => act({ type: "claim" }) : null}
           />
         ))}
-        <CenterInfo game={game} nameOf={nameOf} canClaim={canClaim} onClaim={() => act({ type: "claim" })} />
+        <CenterInfo
+          game={game}
+          windNumber={room.lobby.game?.windNumber ?? 1}
+          nameOf={nameOf}
+          canClaim={canClaim}
+          onClaim={() => act({ type: "claim" })}
+        />
       </div>
 
       <ActionBar commands={controls.barCommands} status={statusLine(game, nameOf)} onSort={controls.sort} />
-      {view.phase.kind === "handOver" && <HandOver game={game} nameOf={nameOf} />}
+      {view.phase.kind === "handOver" && <HandOver game={game} room={room} nameOf={nameOf} />}
+      <HostPrompts room={room} nameOf={nameOf} />
+      <button className="leave-table subtle" onClick={leave}>
+        Leave table
+      </button>
     </div>
   );
 }
 
-function SeatLabel({ name, wind, dealer }: { name: string; wind: Wind; dealer: boolean }) {
+function SeatLabel(props: { name: string; wind: Wind; dealer: boolean; score: number; host: boolean }) {
   return (
     <div className="seat-label">
-      <span className="wind" title={`${WIND_NAMES[wind]} seat`}>
-        {WIND_GLYPHS[wind]}
+      <span className="wind" title={`${WIND_NAMES[props.wind]} seat`}>
+        {WIND_GLYPHS[props.wind]}
       </span>
-      {name}
-      {dealer && <span className="dealer">dealer</span>}
+      {props.host && <span title="Host">👑</span>}
+      {props.name}
+      <span className="seat-score" title="Running total">
+        {formatPoints(props.score)}
+      </span>
+      {props.dealer && <span className="dealer">dealer</span>}
     </div>
   );
 }
@@ -142,13 +165,19 @@ function Pond(props: {
   );
 }
 
-function CenterInfo(props: { game: GameSnapshot; nameOf: (s: Seat) => string; canClaim: boolean; onClaim(): void }) {
+function CenterInfo(props: {
+  game: GameSnapshot;
+  windNumber: number;
+  nameOf: (s: Seat) => string;
+  canClaim: boolean;
+  onClaim(): void;
+}) {
   const { view } = props.game;
   const { phase } = view;
   return (
     <div className="center-info">
       <div className="prevailing" title="Prevailing wind">
-        {WIND_GLYPHS[view.prevailingWind]} round
+        Round {props.windNumber} · {WIND_GLYPHS[view.prevailingWind]}
       </div>
       <div className="wall-count">{view.wallCount} tiles left</div>
       {phase.kind === "claimWindow" && (
@@ -229,38 +258,4 @@ function statusLine({ view, legalActions }: GameSnapshot, nameOf: (s: Seat) => s
     case "handOver":
       return "Hand over";
   }
-}
-
-function HandOver({ game, nameOf }: { game: GameSnapshot; nameOf: (s: Seat) => string }) {
-  const { startHand, showLobby } = useStore();
-  const { phase } = game.view;
-  if (phase.kind !== "handOver") return null;
-  const { result } = phase;
-  let headline = "Draw: the wall ran out";
-  if (result.kind === "win") {
-    const how = result.selfDraw
-      ? "self-drawn (自摸)"
-      : result.robbedKong
-        ? `robbing ${nameOf(result.from!)}'s kong`
-        : `on ${nameOf(result.from!)}'s discard`;
-    headline = `${nameOf(result.winner)} wins ${how} with the ${kindCode(kindOf(result.tile))}`;
-  }
-  return (
-    <div className="hand-over">
-      <h2>{headline}</h2>
-      <ul>
-        {result.payments.map((p, seat) => (
-          <li key={seat}>
-            {nameOf(seat as Seat)}: <strong>{p > 0 ? `+${p}` : p}</strong>
-          </li>
-        ))}
-      </ul>
-      <div className="hand-over-buttons">
-        <button onClick={startHand}>Deal again</button>
-        <button className="subtle" onClick={showLobby}>
-          Back to lobby
-        </button>
-      </div>
-    </div>
-  );
 }

@@ -1,9 +1,8 @@
 import type { Action, Seat, TileId } from "@mahjong/engine";
-import type { ErrorCode, ServerMessage } from "@mahjong/protocol";
+import type { ClientMessage, ErrorCode, LobbyMessage, ServerMessage } from "@mahjong/protocol";
 import { create } from "zustand";
 import { GameSocket, type ConnectionStatus } from "./socket";
 
-type LobbyMessage = Extract<ServerMessage, { t: "lobby" }>;
 type StateMessage = Extract<ServerMessage, { t: "state" }>;
 
 /** Who we are in which room. Saved in localStorage so a refresh rejoins the same seat. */
@@ -27,9 +26,13 @@ interface Store {
   status: ConnectionStatus;
   session: Session | null;
   lobby: LobbyMessage | null;
+  /** When the lobby message arrived (for its countdowns). */
+  lobbyAt: number;
   game: GameSnapshot | null;
-  /** Show the table (true) or the lobby (false). A new deal switches to the table. */
-  atTable: boolean;
+  /** Still looking at the last hand's result after the room moved on to a wind break. */
+  viewingResult: boolean;
+  /** Left at a wind break: show this player the celebration screen. */
+  leftGame: boolean;
   /** The most recently discarded tile, for highlighting in its pond. */
   lastDiscard: TileId | null;
   notice: Notice | null;
@@ -37,12 +40,12 @@ interface Store {
   createRoom(name: string): void;
   joinRoom(room: string, name: string): void;
   leaveRoom(): void;
+  send(message: ClientMessage): void;
   takeSeat(seat: Seat): void;
-  leaveSeat(): void;
-  addBots(): void;
-  startHand(): void;
   act(action: Action): void;
-  showLobby(): void;
+  /** At a wind break: give up your seat and see the celebration. */
+  leaveGame(): void;
+  set(partial: Partial<Pick<Store, "viewingResult" | "leftGame">>): void;
   dismissNotice(): void;
 }
 
@@ -88,15 +91,22 @@ export const useStore = create<Store>()((set, get) => {
         return;
       }
       case "lobby":
-        set({ lobby: m });
+        set((s) => ({
+          lobby: m,
+          lobbyAt: performance.now(),
+          // A new game (or a fresh lobby) clears the personal end-of-game screen.
+          leftGame: s.leftGame && m.phase !== "lobby",
+          viewingResult: s.viewingResult && m.phase === "windBreak",
+        }));
         return;
       case "state": {
         const { t: _, ...rest } = m;
         const discarded = m.events.findLast((e) => e.type === "discarded");
         const dealt = m.events.some((e) => e.type === "dealt");
+        const ended = m.events.some((e) => e.type === "handOver");
         set((s) => ({
           game: { ...rest, receivedAt: performance.now() },
-          atTable: s.atTable || dealt || m.view.phase.kind !== "handOver",
+          viewingResult: ended || (s.viewingResult && !dealt),
           lastDiscard: discarded?.type === "discarded" ? discarded.tile : dealt ? null : s.lastDiscard,
         }));
         return;
@@ -118,8 +128,10 @@ export const useStore = create<Store>()((set, get) => {
     status: "connecting",
     session: loadSession(),
     lobby: null,
+    lobbyAt: 0,
     game: null,
-    atTable: false,
+    viewingResult: false,
+    leftGame: false,
     lastDiscard: null,
     notice: null,
 
@@ -133,19 +145,21 @@ export const useStore = create<Store>()((set, get) => {
     },
     leaveRoom() {
       saveSession(null);
-      set({ session: null, lobby: null, game: null, atTable: false });
+      set({ session: null, lobby: null, game: null, viewingResult: false, leftGame: false });
       // The server only notices we've gone when the socket closes, so start a fresh one.
       socket.restart();
     },
+    send: (message) => socket.send(message),
     takeSeat: (seat) => socket.send({ t: "takeSeat", seat }),
-    leaveSeat: () => socket.send({ t: "leaveSeat" }),
-    addBots: () => socket.send({ t: "addBots" }),
-    startHand: () => socket.send({ t: "startHand" }),
+    leaveGame() {
+      socket.send({ t: "leaveSeat" });
+      set({ leftGame: true, viewingResult: false });
+    },
+    set: (partial) => set(partial),
     act(action) {
       const { game } = get();
       if (game) socket.send({ t: "action", action, stateVersion: game.stateVersion });
     },
-    showLobby: () => set({ atTable: false }),
     dismissNotice: () => set({ notice: null }),
   };
 });

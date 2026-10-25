@@ -36,9 +36,9 @@ export function SettingsMenu() {
 
   const silent = muted || volume === 0;
   return (
-    <div className="settings" ref={ref}>
+    <div className="user-settings" ref={ref}>
       <button
-        className={`subtle settings-button${open ? " open" : ""}`}
+        className={`subtle user-settings-button${open ? " open" : ""}`}
         onClick={() => setOpen(!open)}
         aria-label="Settings"
         aria-expanded={open}
@@ -47,7 +47,7 @@ export function SettingsMenu() {
         <GearIcon />
       </button>
       {open && (
-        <div className="settings-menu" role="dialog" aria-label="Settings">
+        <div className="user-settings-menu" role="dialog" aria-label="Settings">
           <h3>Settings</h3>
           <div className="setting">
             <label className="setting-label" htmlFor="sound-volume">

@@ -50,20 +50,19 @@ export function SettingsMenu() {
         <div className="settings-menu" role="dialog" aria-label="Settings">
           <h3>Settings</h3>
           <div className="setting">
-            <span className="setting-label">Sound</span>
-            <button className="subtle" onClick={toggleMute} aria-label={silent ? "Unmute" : "Mute"} title={silent ? "Unmute" : "Mute"}>
-              {silent ? "🔇" : volume < 0.4 ? "🔈" : "🔊"}
-            </button>
+            <label className="setting-label" htmlFor="sound-volume">
+              Sound
+            </label>
             <input
+              id="sound-volume"
               type="range"
               min={0}
               max={1}
               step={0.05}
               value={muted ? 0 : volume}
               onChange={(e) => setVolume(Number(e.target.value))}
-              aria-label="Volume"
             />
-            <span className="setting-value">{muted ? "Off" : `${Math.round(volume * 100)}%`}</span>
+            <span className="setting-value">{silent ? "Off" : `${Math.round(volume * 100)}%`}</span>
           </div>
           <p className="muted setting-hint">
             <kbd>M</kbd> mutes or unmutes at any time.

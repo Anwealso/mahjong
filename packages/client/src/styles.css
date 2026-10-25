@@ -82,7 +82,6 @@ kbd {
 .settings-menu h3 { margin: 0 0 10px; font-size: 0.95rem; }
 .setting { display: flex; align-items: center; gap: 8px; }
 .setting-label { flex: 1; }
-.setting button { padding: 4px 8px; }
 .setting input { width: 110px; accent-color: var(--gold); }
 .setting-value { width: 3em; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.8; }
 .setting-hint { margin: 10px 0 0; font-size: 0.8rem; }

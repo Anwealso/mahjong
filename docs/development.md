@@ -28,6 +28,12 @@ packages/
     wall.ts           buildWall(seed)
     rules.ts          RuleConfig + DEFAULT_RULES
     win.ts            decompose, isWinningHand, waitingKinds, special hands
+    types.ts          Seat, Meld, Action, Phase, HandState, HandResult, GameEvent
+    hand.ts           the hand state machine: startHand, legalActions, applyAction, closeClaimWindow
+    view.ts           projectView / projectEvents: what each seat may see
+    scoring.ts        flat Chicken Hand payments
+    testing.ts        stackWall: build an exact wall from hand notation
+    clone.ts          deep copy for plain data (keeps the engine free of environment APIs)
     *.test.ts         tests sit next to the code they test
   server/src/         Node + ws server (placeholder until milestone 3)
   client/src/         React + Vite app (engine playground until milestone 4)
@@ -58,8 +64,20 @@ const counts = countKinds(parseKinds("123c 456d 789b EEE RR"));
 expect(isWinningHand(counts, 0, DEFAULT_RULES)).toBe(true);
 ```
 
-Prefer a property test (random playouts plus invariants) over listing every case for anything involving
-turn flow.
+For a specific situation, build the deal with `stackWall` instead of hunting for a seed:
+
+```ts
+const wall = stackWall({
+  hands: ["5b 147c 258d 369b ESWN", "46b 147c 258d EEE RG", "55b 258c 369d NGGGWh", "369c 147d 1b 9b SSS WhWh"],
+  draws: "R N",        // next tiles from the front of the wall
+  replacements: "G",   // kong replacement tiles from the back
+});
+const { state } = startHand({ seed: 1, wall });
+```
+
+New turn-flow rules should also keep `playout.test.ts` passing. It plays hundreds of random hands and
+checks the invariants after every move. Hot loops there use a plain `assert`, because `expect` is too
+slow to call hundreds of thousands of times.
 
 **TypeScript.** The settings are strict, including `noUncheckedIndexedAccess`, so array reads are
 `T | undefined`. Handle it, or use `!` only where an index is provably in range (as in hot loops over

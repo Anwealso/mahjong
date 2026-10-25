@@ -70,6 +70,8 @@ Once a set is declared (a chow, pung, or kong claimed from a discard, or a conce
 front of the player and **locked**. Its tiles can never be discarded, rearranged, or used in another set.
 Discards always come from the player's remaining hand tiles.
 
+A **concealed kong is shown to the table** once declared, so everyone knows its kind.
+
 Any tile still in your hand may be discarded, including straight after a claim. For example, after
 claiming a `4` to chow `456` you may discard a `7` you were holding. (Some rule sets ban this; casual Hong
 Kong play doesn't.)

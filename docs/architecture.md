@@ -123,38 +123,55 @@ Swapping a seat between human, autopilot, and bot is just replacing its controll
      └───────────────────────────────────────────────────────────────────────────────┘
 ```
 
-Phases: `AwaitDiscard`, `ClaimWindow`, `HandOver` (draws are automatic transitions, not player actions).
-
-Actions:
+Phases (`Phase` in `engine/src/types.ts`): `awaitDiscard`, `claimWindow`, `handOver`. Draws are automatic
+transitions, not player actions.
 
 | Phase | Actor | Actions |
 |---|---|---|
-| `AwaitDiscard` | turn seat | `discard(tile)`, `concealedKong(kind)`, `addedKong(tile)`, `selfDrawWin` |
-| `ClaimWindow` | each other seat | `pass`, `chow(tiles)`, `pung`, `exposedKong`, `win` |
-| `HandOver` | any | `ready` (start the next hand once all are ready) |
+| `awaitDiscard` | turn seat | `discard(tile)`, `concealedKong(kind)`, `addedKong(tile)`, `selfDrawWin` (only if they drew) |
+| `claimWindow` (discard) | each other seat | `pass`, `win`, `pung`, `kong`, `chow(tiles)` (chow: next seat only) |
+| `claimWindow` (added kong) | each other seat | `pass`, `win`. Only opened when `robbingKong` is on |
+| `handOver` | — | Nothing. Starting the next hand belongs to the game layer (milestone 5) |
 
-Engine API (all pure):
+Engine API (all pure; `engine/src/hand.ts` and `view.ts`). The engine models **one hand**; the multi-hand
+game (dealer rotation, winds, running scores) wraps it in milestone 5.
 
 ```ts
-createGame(rules: RuleConfig, seed: number): GameState
-legalActions(state, seat): Action[]
-applyAction(state, seat, action): { state, events } | { error }
-closeClaimWindow(state): { state, events }   // server calls this when the deadline hits
-projectView(state, seat): PlayerView
+startHand({ seed, rules?, dealer?, prevailingWind?, wall? }): { state: HandState, events }
+legalActions(state, seat): Action[]                  // [] if it's not this seat's decision
+applyAction(state, seat, action): { ok: true, state, events } | { ok: false, error }
+closeClaimWindow(state): same result type            // server calls this when the 5s timer runs out
+pendingClaimants(state): Seat[]                      // who the claim window is still waiting on
+projectView(state, seat): PlayerView                 // the only thing that leaves the server
+projectEvents(events, seat): GameEvent[]             // hides other players' drawn tiles
+stackWall({ hands, draws?, replacements? })          // build an exact wall for tests and debugging
 ```
+
+`applyAction` only accepts actions that appear in `legalActions`, so legality is defined in one place. It
+never modifies its input; it deep-copies the state first (a few microseconds; a full random hand of ~100
+moves runs in about 2.5 ms including view projection).
 
 **The engine has no clock.** The server owns timers. When the claim deadline passes, it calls
 `closeClaimWindow`, which treats every seat that hasn't answered as having passed. The window also closes
-early once every seat that *can* claim has answered. Seats with no legal claim are auto-passed instantly.
+early once every seat that *can* claim has answered. Seats with no legal claim are auto-passed instantly,
+and if nobody can claim at all, no window opens and the next player draws straight away (see
+[D10](decisions.md#d10-claim-window-at-most-5-seconds-closes-early)).
 
-> Trade-off: closing the window early leaks a little information (a long pause means *someone* is
-> considering a claim). That's fine for friends; a `fixedClaimWindow` option can always wait out the full
-> window if it bothers anyone.
+Claim resolution: a win beats pung/kong, which beats chow. Ties between winners are settled by turn order after the
+discarder (head bump), unless `multipleWinners: "all"`.
 
 ### Scoring
 
-`scoreHand(result, rules) → { payments: [d0, d1, d2, d3] }`. For Chicken Hand that's the flat payment
-table above. It's isolated so faan scoring can replace it later.
+`scoreWin(winners, selfDraw, payer) → payments[4]` in `engine/src/scoring.ts`: the flat Chicken Hand
+payment from [rules.md](rules.md). It's isolated so faan scoring can replace it later.
+
+### Tests
+
+- `hand.test.ts`: one scenario per rule, built with `stackWall` (priority, head bump, chow only from the
+  left, all kong types, robbing, locked sets, passing up a win, end of wall, validation, views).
+- `playout.test.ts`: 800 random hands (default rules and every option on). After every move it checks
+  that every tile is in exactly one place, hand sizes are right, the game never gets stuck, payments sum
+  to 0, and no player's view contains another player's concealed tiles or the wall.
 
 ## Server design
 

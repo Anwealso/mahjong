@@ -5,8 +5,8 @@ Milestones in build order. Each one should end with passing tests and something 
 | # | Milestone | Status |
 |---|---|---|
 | 1 | Engine core | ✅ Done |
-| 2 | Engine: hand state machine | ⏭ Next |
-| 3 | Server + protocol | — |
+| 2 | Engine: hand state machine | ✅ Done |
+| 3 | Server + protocol | ⏭ Next |
 | 4 | Client table UI | — |
 | 5 | Full game (multiple hands) | — |
 | 6 | Resilience + deploy | — |
@@ -19,7 +19,7 @@ Milestones in build order. Each one should end with passing tests and something 
 - Win detection (`decompose`, `isWinningHand`, including the optional special hands) and `waitingKinds`.
 - A client "engine playground" page for poking at hands in the browser.
 
-## 2. Engine: hand state machine
+## 2. Engine: hand state machine ✅
 
 - `GameState`, `Action`, `GameEvent`, and `PlayerView` types.
 - Deal; draw; discard; claim window with priority and head bump; chow, pung, and all three kong types with

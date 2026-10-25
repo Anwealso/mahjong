@@ -295,7 +295,8 @@ keyboard shortcuts keep the first-come claim race fair for keyboard players.
 
 **Status:** accepted · 2026-10-25 · details in [game-flow.md](game-flow.md)
 
-- The first dealer is random (once per game). The dealer keeps the deal after a dealer win or a draw.
+- The first dealer is random (once per game). The dealer keeps the deal after a dealer win or a draw
+  (now an optional setting, off by default: see [D24](#d24-the-deal-passes-on-after-every-hand-by-default)).
 - Games don't stop after four winds. At the end of every wind everyone returns to a special end-of-wind
   lobby view: the finished wind's big logo, a podium for that wind, and the overall leaderboard.
 - Continuing to the next wind needs a **unanimous** vote of the seated people, with no countdown. Anyone
@@ -333,3 +334,19 @@ timer can't. Seat-owned scores make swapping people and bots in and out painless
 
 **Considered:** an autopilot that plays automatically after a timeout (the old behaviour: it hid the problem
 and played badly); scores per person (complicated when people swap seats or leave).
+
+## D24. The deal passes on after every hand by default
+
+**Status:** accepted · 2026-10-25 · refines [D22](#d22-open-ended-games-wind-breaks-and-unanimous-continue-votes)
+
+- New **game setting** `dealerKeepsDeal`, **off by default**: the deal passes to the next seat after every
+  hand, whatever the result, so every wind is exactly four hands.
+- When on, the traditional rule applies: the dealer keeps the deal after a dealer win or a draw.
+- The host sets it in the pre-game lobby; it's fixed once the game starts and carries over to the next
+  game.
+
+**Why:** random bots almost never win, so with the traditional rule a bot-heavy table draws hand after
+hand, the dealer never moves, and winds never end. Fixed-length winds also make the wind-break votes
+predictable (every four hands).
+
+**Considered:** keeping the deal only after a dealer win (not a draw); capping consecutive dealer repeats.

@@ -35,12 +35,21 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 - The host clicks **Start game** once all four seats are filled.
 - The **first dealer is chosen at random**, once per game. After that the deal rotates (see below).
 
+## Game settings
+
+Set by the host in the lobby **before the game starts**; everyone else sees them read-only. They're fixed
+for the whole game (also while paused) and carry over to the next game.
+
+| Setting | Default | Effect |
+|---|---|---|
+| Dealer keeps the deal | **Off** | Off: the deal passes on after every hand, so a wind is exactly 4 hands. On: the dealer keeps the deal after a dealer win or a draw |
+
 ## Dealer, winds, and rounds
 
-- The dealer **keeps the deal** after a dealer win or a draw hand. Otherwise the deal passes to the next
-  seat in turn order.
+- By default the deal passes to the next seat in turn order after every hand. With **Dealer keeps the
+  deal** on, the dealer keeps it after a dealer win or a draw.
 - A **wind** (prevailing-wind round) lasts until the deal has passed all the way round the table and back to
-  the seat that dealt first in the game: at least 4 hands, more when dealers keep the deal. Then the
+  the seat that dealt first in the game: exactly 4 hands by default, more when dealers keep the deal. Then the
   prevailing wind advances East → South → West → North, and after North it wraps back to East. The table
   shows "Round N · 東" etc.
 - **Games are open-ended.** They don't stop after four winds; they end only when the players stop at a wind
@@ -94,8 +103,9 @@ The host clicks **New game** to return to the lobby with all scores reset (seats
 ## Known limitation: random bots rarely win
 
 The bots play random legal moves, so they almost never complete a hand. At a table that's mostly bots,
-most hands end as draws, the dealer keeps the deal, and a wind can take a very long time to finish.
-Smarter bots (milestone 7) fix this; they're just new policies.
+most hands end as draws. That's why **Dealer keeps the deal** is off by default: otherwise the dealer would
+keep the deal through draw after draw and a wind could take a very long time to finish. Smarter bots
+(milestone 7) would fix the underlying problem; they're just new policies.
 
 ## Dropouts during a hand
 

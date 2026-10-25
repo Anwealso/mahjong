@@ -138,8 +138,11 @@ The discarder never pays double. **Kongs pay nothing**: a kong is just a set.
 ## Dealer and rounds
 
 - The first dealer of a game is chosen at random.
-- The dealer **keeps the deal** after a dealer win or a draw hand (no limit on how many times in a row).
-  Otherwise the deal passes to the next player in turn order.
+- By default the **deal passes to the next player after every hand**, whatever the result, so each wind
+  is exactly four hands.
+- **Game setting "Dealer keeps the deal"** (off by default; the host sets it in the lobby before the game
+  starts): the dealer keeps the deal after a dealer win or a draw hand (no limit on how many times in a
+  row), as in traditional Hong Kong play. Otherwise the deal passes on.
 - After the deal has gone all the way round, the prevailing wind advances: East → South → West → North,
   then back to East. **Games are open-ended:** at the end of each wind the players vote on whether to
   continue. Scores are running totals kept per seat. See [game-flow.md](game-flow.md) for wind breaks,

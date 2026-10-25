@@ -1,4 +1,6 @@
 {
   "extends": "../../tsconfig.base.json",
+  // Node types only for the arena command line; the bots themselves are plain TypeScript.
+  "compilerOptions": { "types": ["node"] },
   "include": ["src"]
 }

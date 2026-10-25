@@ -10,12 +10,7 @@ import { NUM_KINDS } from "@mahjong/engine";
  */
 export function shanten(counts: readonly number[], lockedMelds: number): number {
   const needed = 4 - lockedMelds;
-  const groups = [
-    suitOptions(counts.slice(0, 9), true),
-    suitOptions(counts.slice(9, 18), true),
-    suitOptions(counts.slice(18, 27), true),
-    suitOptions(counts.slice(27, NUM_KINDS), false),
-  ];
+  const groups = [suitOptions(counts, 0, 9, true), suitOptions(counts, 9, 18, true), suitOptions(counts, 18, 27, true), suitOptions(counts, 27, NUM_KINDS, false)];
   let best = Infinity;
   // Either no pair, or exactly one group supplies the pair.
   for (let pairGroup = -1; pairGroup < 4; pairGroup++) {
@@ -46,14 +41,21 @@ function combine(groups: GroupOptions[], pairGroup: number, needed: number): num
   return best;
 }
 
-const cache = new Map<string, GroupOptions>();
+const suitCache = new Map<number, GroupOptions>();
+const honourCache = new Map<number, GroupOptions>();
 
-/** Every useful (sets, partials) split of one suit (or the honours, which can't make runs). */
-function suitOptions(counts: number[], runs: boolean): GroupOptions {
-  const key = `${runs ? "s" : "h"}${counts.join("")}`;
+/**
+ * Every useful (sets, partials) split of one suit, `counts[from..to)` (or the honours, which can't make
+ * runs). Keyed by the counts as a base-5 number: this runs millions of times in Hard's lookahead.
+ */
+function suitOptions(counts: readonly number[], from: number, to: number, runs: boolean): GroupOptions {
+  let key = 0;
+  for (let i = from; i < to; i++) key = key * 5 + counts[i]!;
+  const cache = runs ? suitCache : honourCache;
   let cached = cache.get(key);
   if (!cached) {
-    cached = { withoutPair: pareto(splits(counts, runs, false)), withPair: pareto(splits(counts, runs, true)) };
+    const slice = counts.slice(from, to);
+    cached = { withoutPair: pareto(splits(slice, runs, false)), withPair: pareto(splits(slice, runs, true)) };
     cache.set(key, cached);
   }
   return cached;

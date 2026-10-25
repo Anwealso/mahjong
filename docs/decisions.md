@@ -376,3 +376,27 @@ predictable (every four hands).
 **Considered:** Railway ($5/month base, simpler deploys, less control over region); always-on (costs more
 for no benefit to a group that plays in sessions); saving rooms to a volume so deploys don't end games
 (more work, deferred); deploying by hand.
+
+## D26. Easy / Medium / Hard bots with human-like timing; Hard thinks in a worker thread
+
+**Status:** accepted · 2026-10-25 · full plan in [bots.md](bots.md) · replaces random bots as the default
+
+- Three levels built on **shanten** (tiles from ready) and **ukeire** (unseen tiles that improve the hand):
+  Easy plays loosely, Medium plays for speed, Hard adds **defence** (danger from opponents' public set
+  counts, melds and discards) and then **Monte Carlo lookahead** for close decisions. Random remains as a
+  hidden level for tests.
+- Every level **always takes a win**, and uses the **same human-like timing** (claims after 0.8–2 s,
+  discards after 1–2.5 s), so difficulty never means winning the claim race by being faster.
+- A room-wide **Bot level** setting (default Medium) used for new bots and dropout replacements, and a
+  per-bot level the host can change in the lobby.
+- Bots live in a new pure package, `packages/bots`, with an **arena** that plays seeded matches between
+  levels; tests check the levels are ordered (Medium > Easy > Random, Hard ≥ Medium).
+- On the server, Easy and Medium decide in-process (well under a millisecond); Hard runs in **one worker
+  thread** with a time budget, falling back to Medium's move if it runs out, so it never delays other
+  rooms' claim races.
+
+**Why:** in Chicken Hand every win is worth the same, so "fastest safe hand" is the whole strategy, and
+shanten/ukeire plus defence capture it cheaply. Equal reaction times keep the first-come claim race fair.
+
+**Considered:** a separate bot service (extra machine and cost), bots in the host's browser (die with the
+tab, tamperable), learned policies (big project for little gain here).

@@ -1,7 +1,7 @@
 # Bots: plan for Easy / Medium / Hard
 
-**Status: proposal (milestone 7).** Nothing here is built yet. Recommended choices are marked ✅; open
-questions are at the end. Once agreed, the choices go into [decisions.md](decisions.md).
+**Status: accepted (milestone 7)** as [D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread).
+The ✅ choices and the answers to the questions at the end are the plan being built.
 
 ## Where we are
 
@@ -108,10 +108,11 @@ rooms of Hard bots is fine; the per-room cap (4 seats) and room limit (100) keep
 4. Async policies + worker thread; Hard (defence first, then Monte Carlo lookahead); arena checks.
 5. Docs: decisions, game-flow (levels and delays), architecture.
 
-## Open questions
+## Decisions (answers to the open questions)
 
-1. **Levels**: Easy / Medium / Hard as described above? Keep Random as a hidden testing-only level?
-2. **Picking levels**: a room-wide default in Game settings plus a per-bot picker for the host?
-3. **Reaction time**: same human-like delays at every level, so difficulty never means faster claims?
-4. **Wins**: should Easy sometimes *miss* a win (like a distracted beginner), or always take it?
-5. **Hard's lookahead**: build defence first and add Monte Carlo after, or go straight for both?
+1. **Levels:** Easy / Medium / Hard as above. Random stays as a hidden level for tests and the arena.
+2. **Picking levels:** a room-wide **Bot level** in Game settings (default Medium; the host can change it
+   before a game and while paused), plus a per-bot picker for the host in the lobby.
+3. **Reaction time:** the same human-like delays at every level.
+4. **Wins:** every level always takes a win.
+5. **Hard:** defence first, then Monte Carlo lookahead on top.

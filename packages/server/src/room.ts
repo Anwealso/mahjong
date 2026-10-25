@@ -20,6 +20,7 @@ import {
   autopilotPolicy,
   HumanController,
   PolicyController,
+  randomPolicy,
   type Connection,
   type SeatController,
 } from "./controllers";
@@ -29,12 +30,14 @@ export interface RoomOptions {
   claimWindowMs: number;
   /** How long the autopilot waits before acting for a disconnected player. */
   autopilotDelayMs: number;
+  /** How long a bot waits before acting. Defaults to `autopilotDelayMs`. */
+  botDelayMs?: number;
   rules?: RuleConfig;
   /** Tests only: deal this exact wall instead of a random one. */
   wallForNextHand?: () => TileId[] | undefined;
 }
 
-export const DEFAULT_ROOM_OPTIONS: RoomOptions = { claimWindowMs: 5000, autopilotDelayMs: 1000 };
+export const DEFAULT_ROOM_OPTIONS: RoomOptions = { claimWindowMs: 5000, autopilotDelayMs: 1000, botDelayMs: 1500 };
 
 export interface RoomError {
   code: ErrorCode;
@@ -48,6 +51,8 @@ interface Member {
   token: string;
   seat: Seat | null;
   connection: Connection | null;
+  /** A server-side bot: never connected, plays its seat with a policy. */
+  bot: boolean;
 }
 
 const error = (code: ErrorCode, message: string): RoomError => ({ code, message });
@@ -91,7 +96,7 @@ export class Room {
       member.name = name;
       member.connection = connection;
     } else {
-      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection };
+      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection, bot: false };
       this.members.set(member.id, member);
     }
     connection.send({ t: "welcome", room: this.code, memberId: member.id, sessionToken: member.token });
@@ -123,7 +128,9 @@ export class Room {
     if (!member) return error("notInRoom", "You're not in this room");
     if (this.handInProgress) return error("handInProgress", "Seats can't change during a hand");
     const holder = this.seats[seat];
-    if (holder && holder !== memberId) return error("seatTaken", "That seat is taken");
+    // A bot gives up its seat to any person who wants it.
+    if (holder && this.members.get(holder)?.bot) this.members.delete(holder);
+    else if (holder && holder !== memberId) return error("seatTaken", "That seat is taken");
     if (member.seat !== null) this.seats[member.seat] = null;
     this.seats[seat] = memberId;
     member.seat = seat;
@@ -137,6 +144,20 @@ export class Room {
     if (this.handInProgress) return error("handInProgress", "Seats can't change during a hand");
     if (member.seat !== null) this.seats[member.seat] = null;
     member.seat = null;
+    this.broadcastLobby();
+    return null;
+  }
+
+  /** Fill every empty seat with a bot that plays random legal moves (for testing, or a short table). */
+  addBots(memberId: string): RoomError | null {
+    if (!this.members.has(memberId)) return error("notInRoom", "You're not in this room");
+    if (this.handInProgress) return error("handInProgress", "Seats can't change during a hand");
+    for (const seat of SEATS) {
+      if (this.seats[seat] !== null) continue;
+      const bot: Member = { id: randomUUID().slice(0, 8), name: `Bot ${seat + 1}`, token: randomUUID(), seat, connection: null, bot: true };
+      this.members.set(bot.id, bot);
+      this.seats[seat] = bot.id;
+    }
     this.broadcastLobby();
     return null;
   }
@@ -155,7 +176,8 @@ export class Room {
     });
     for (const seat of SEATS) {
       const member = this.members.get(this.seats[seat]!)!;
-      this.setController(seat, member.connection ? new HumanController(member.connection) : this.autopilot(seat));
+      if (member.bot) this.setController(seat, this.bot(seat));
+      else this.setController(seat, member.connection ? new HumanController(member.connection) : this.autopilot(seat));
     }
     this.broadcastLobbyAfter(() => this.commit(state, events));
     return null;
@@ -248,6 +270,14 @@ export class Room {
     );
   }
 
+  private bot(seat: Seat): SeatController {
+    return new PolicyController(
+      randomPolicy(),
+      (action, stateVersion) => this.submit(seat, action, stateVersion),
+      this.options.botDelayMs ?? this.options.autopilotDelayMs,
+    );
+  }
+
   /** Run a change that may start or end a hand, then tell everyone the lobby's `handInProgress` changed. */
   private broadcastLobbyAfter(change: () => void) {
     change();
@@ -260,6 +290,7 @@ export class Room {
       name: m.name,
       seat: m.seat,
       connected: m.connection !== null,
+      bot: m.bot,
     }));
     const message = {
       t: "lobby" as const,

@@ -61,6 +61,8 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
           return fail(room.takeSeat(memberId, message.seat));
         case "leaveSeat":
           return fail(room.leaveSeat(memberId));
+        case "addBots":
+          return fail(room.addBots(memberId));
         case "startHand":
           return fail(room.startHand(memberId));
         case "action":

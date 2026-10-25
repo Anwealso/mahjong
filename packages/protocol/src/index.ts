@@ -48,6 +48,8 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("join"), room: roomCodeSchema, name: playerNameSchema, sessionToken: z.string().max(100).optional() }),
   z.object({ t: z.literal("takeSeat"), seat: seatSchema }),
   z.object({ t: z.literal("leaveSeat") }),
+  /** Fill every empty seat with a random-move bot. A person taking a bot's seat replaces it. */
+  z.object({ t: z.literal("addBots") }),
   /** Deal a new hand. Needs all four seats filled and no hand in progress. */
   z.object({ t: z.literal("startHand") }),
   /** `stateVersion` is the version of the state the player was looking at when they acted. */
@@ -63,6 +65,7 @@ export interface MemberInfo {
   name: string;
   seat: Seat | null;
   connected: boolean;
+  bot: boolean;
 }
 
 export type ServerMessage =

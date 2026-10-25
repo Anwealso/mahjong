@@ -219,11 +219,21 @@ Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (
   `localStorage`. Joining again with that token reclaims the same member and seat (from the bot keeping it,
   if the host had replaced them) and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
   connection wins.
-- **Lifecycle**: rooms with nobody connected and no activity for 30 minutes are swept away every minute.
-  A server restart loses in-progress games in v1. Persisting `seed + action log` to SQLite would make them
+- **Lifecycle**: every minute, rooms with nobody connected and no activity for 30 minutes are deleted, and
+  watchers who disconnected more than 10 minutes ago are dropped from the rest (seated people and anyone a
+  bot is keeping a seat for stay). A restart loses in-progress games ([D25](decisions.md#d25-flyio-in-sydney-one-machine-that-stops-when-idle-deploys-from-github-actions)): on SIGTERM/SIGINT the
+  server sends everyone `serverRestarting` before closing. Persisting `seed + action log` would make games
   recoverable later.
+- **Heartbeat**: every 25 s the server pings each socket and terminates any that didn't answer the
+  previous ping, so a dropped connection becomes "offline" (and prompts the host) within a minute.
 - **Limits**: incoming messages are capped at 16 KB and validated with zod before anything else touches
-  them.
+  them. At most 100 rooms (`serverFull`), 12 people per room (`roomFull`; reconnecting members always get
+  back in), and 5 new rooms per minute per connection (`rateLimited`).
+- **Production**: `npm run build` builds the client (Vite) and bundles the server, with the engine and
+  protocol sources, into one `packages/server/dist/server.mjs` (esbuild). That process serves the client
+  from `packages/client/dist` (`static.ts`: hashed `/assets/*` cached forever, `index.html` never cached,
+  app links fall back to `index.html`, nothing outside the directory), `/health`, and `/ws`. Deployment:
+  [deploy.md](deploy.md).
 
 ### Protocol
 
@@ -255,7 +265,9 @@ Server → client:
   readyMsLeft, voteRemoveMsLeft, requests: { id, name }[] }
 { t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
 { t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |
-                                // notEnoughPlayers | notSeated | staleState | illegalAction | notHost | notAllowed
+                                // notEnoughPlayers | notSeated | staleState | illegalAction | notHost |
+                                // notAllowed | serverFull | roomFull | rateLimited
+{ t: "serverRestarting" }       // sent to everyone just before the server shuts down
 ```
 
 ### Server tests

@@ -9,8 +9,8 @@ Milestones in build order. Each one should end with passing tests and something 
 | 3 | Server + protocol | ✅ Done |
 | 4 | Client table UI | ✅ Done |
 | 5 | Full game (multiple hands) | ✅ Done |
-| 6 | Resilience + deploy | ⏭ Next |
-| 7 | Later / nice-to-haves | — |
+| 6 | Resilience + deploy | ✅ Done (awaiting first deploy) |
+| 7 | Later / nice-to-haves | ⏭ Next |
 
 ## 1. Engine core ✅
 
@@ -67,11 +67,18 @@ Specified in [game-flow.md](game-flow.md) ([D22](decisions.md#d22-open-ended-gam
 - Wind break: podium for the wind, leaderboard, unanimous vote to continue, leavers replaced by bots.
 - Celebration screen with confetti for 1st and 2nd.
 
-## 6. Resilience + deploy
+## 6. Resilience + deploy ✅
 
-- Reconnecting with a session token is done (milestones 3 and 5).
-- Clean up abandoned rooms.
-- Production build: the server serves the built client. Deploy to Fly.io or Railway ([D8](decisions.md#d8-hosting-one-service-serving-the-client-and-the-websocket-on-the-same-origin)).
+[D25](decisions.md#d25-flyio-in-sydney-one-machine-that-stops-when-idle-deploys-from-github-actions), setup in [deploy.md](deploy.md).
+
+- Reconnecting with a session token (milestones 3 and 5); a heartbeat that notices dropped connections.
+- Cleanup: empty rooms after 30 minutes, disconnected watchers after 10. Limits on rooms, people per room,
+  and room creation.
+- "The server is restarting" before a shutdown, and a clear message when a room was lost.
+- Production build: the server serves the built client. Dockerfile and `fly.toml` (Sydney, one machine
+  that stops when idle). GitHub Actions tests pull requests and deploys `main`.
+- **Remaining (you):** the one-time Fly.io and GitHub setup in [deploy.md](deploy.md), then the first
+  deploy.
 
 ## 7. Later
 
@@ -84,4 +91,4 @@ Specified in [game-flow.md](game-flow.md) ([D22](decisions.md#d22-open-ended-gam
 
 ## Open questions
 
-- **Hosting:** Fly.io or Railway (decide at milestone 6).
+- None right now. (Hosting: Fly.io, decided in [D25](decisions.md#d25-flyio-in-sydney-one-machine-that-stops-when-idle-deploys-from-github-actions).)

@@ -71,11 +71,11 @@ These steps need your accounts, so they can't be automated from the repo.
 
 ```sh
 npm run build        # client → packages/client/dist, server → packages/server/dist
-npm start            # serves everything on http://localhost:8080
+npm start            # serves everything on http://localhost:8787
 ```
 
-Or exactly as Fly runs it:
+Or exactly as Fly runs it (needs Docker running):
 
 ```sh
-docker build -t mahjong . && docker run -p 8080:8080 mahjong
+docker build -t mahjong . && docker run -p 8080:8080 mahjong   # http://localhost:8080
 ```

@@ -22,5 +22,6 @@ over a voice call. Desktop only for now.
 - **Deterministic engine:** `seed + action log` replays any game.
 - **Bots later:** seats are driven by `SeatController`s, so a server-side bot is a new controller, not a
   refactor.
-- **Status:** milestones 1–5 are done: full open-ended games in the browser with a host, running seat
-  scores, wind breaks, and bots filling in. Next up is resilience and deployment.
+- **Status:** milestones 1–6 are done: full open-ended games in the browser with a host, running seat
+  scores, wind breaks, and bots filling in, ready to deploy to Fly.io (Sydney) from GitHub Actions. The
+  one-time account setup is in [deploy.md](deploy.md).

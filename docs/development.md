@@ -12,6 +12,8 @@ npm run dev         # server (:8787) + client (http://localhost:5173) together
 npm test            # vitest across all packages
 npm run test:watch
 npm run typecheck   # tsc in every package
+npm run build       # production build: client → packages/client/dist, server → packages/server/dist
+npm start           # run the production build (http://localhost:8787, or $PORT)
 ```
 
 In development, Vite proxies `/ws` to the server, so the client always connects to the same origin.
@@ -47,7 +49,9 @@ packages/
     registry.ts       rooms by code, idle sweep
     room.ts           one table: host, seats, the game and hand, phases, timers (claim, idle, ready)
     controllers.ts    seat controllers: human, policy-driven bots (random, future smarter ones)
-    index.ts          entry point (PORT, default 8787)
+    static.ts         serves the built client in production
+    index.ts          entry point (PORT default 8787; BOT_DELAY_MS; CLIENT_DIST); warns clients on SIGTERM
+  server/build.mjs    esbuild bundle → packages/server/dist/server.mjs
   client/src/         React + Vite app
     net/              socket.ts (reconnecting WebSocket), store.ts (Zustand: session, lobby, snapshot)
     net/room.ts       "me / my seat / host / names" derived from the lobby message
@@ -56,6 +60,8 @@ packages/
     hand/             arrangement.ts (order + private groups), claimOptions.ts (ways to use a claimed tile)
     Tile.tsx          the only component that draws a tile
 package.json          npm workspaces + root scripts
+Dockerfile, fly.toml  production image and Fly.io config (docs/deploy.md)
+.github/workflows/    test on pull requests; test + deploy on pushes to main
 tsconfig.base.json    shared strict TS config
 vitest.config.ts      one test runner for all packages
 ```

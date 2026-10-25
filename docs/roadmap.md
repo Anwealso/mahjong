@@ -6,8 +6,8 @@ Milestones in build order. Each one should end with passing tests and something 
 |---|---|---|
 | 1 | Engine core | ✅ Done |
 | 2 | Engine: hand state machine | ✅ Done |
-| 3 | Server + protocol | ⏭ Next |
-| 4 | Client table UI | — |
+| 3 | Server + protocol | ✅ Done |
+| 4 | Client table UI | ⏭ Next |
 | 5 | Full game (multiple hands) | — |
 | 6 | Resilience + deploy | — |
 | 7 | Later / nice-to-haves | — |
@@ -29,14 +29,16 @@ Milestones in build order. Each one should end with passing tests and something 
 - **Property test:** thousands of random legal-action playouts never throw, always account for all 136
   tiles, and never show a seat another seat's concealed tiles in its view.
 
-## 3. Server + protocol
+## 3. Server + protocol ✅
 
 - `packages/protocol`: zod schemas and types for every message.
 - Room registry, 4-letter room codes, lobby, choosing seats, starting a game.
-- `SeatController` interface; `HumanController` and `AutopilotController`.
-- Claim timer, `stateVersion` check against stale actions, session tokens.
-- **Integration test:** 4 random-move bots play full hands over real WebSockets. The random bot becomes the
-  first `BotController`.
+- `SeatController` interface; `HumanController`, plus `PolicyController` running `autopilotPolicy` (for
+  disconnected players) or `randomPolicy`. Future bots are new policies.
+- Claim timer, `stateVersion` check against stale actions, session tokens and reconnecting.
+- **Integration test:** 4 random players play full hands over real WebSockets.
+- Not yet: dealer rotation and running scores (milestone 5). Every hand is currently dealt with seat 0 as
+  dealer.
 
 ## 4. Client table UI
 
@@ -66,6 +68,4 @@ Milestones in build order. Each one should end with passing tests and something 
 
 ## Open questions
 
-- **Discard time limit:** none (it's a casual game on a call), or a generous one so an AFK player doesn't
-  stall the table?
 - **Hosting:** Fly.io or Railway (decide at milestone 6).

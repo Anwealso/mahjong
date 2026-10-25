@@ -14,10 +14,10 @@ over a voice call. Desktop only for now.
 ## The project in 30 seconds
 
 - **TypeScript monorepo:** `packages/engine` (pure rules), `server` (Node + ws), `client` (React + Vite +
-  Zustand). `protocol` (zod message schemas) comes at milestone 3.
+  Zustand), and `protocol` (zod message schemas).
 - **The server is authoritative:** each player only receives what they're allowed to see, plus the moves
   they can legally make.
 - **Deterministic engine:** `seed + action log` replays any game.
 - **Bots later:** seats are driven by `SeatController`s, so a server-side bot is a new controller, not a
   refactor.
-- **Status:** milestone 1 (engine core) is done. Next up is the hand state machine.
+- **Status:** milestones 1–3 (engine, hand logic, server) are done. Next up is the client table UI.

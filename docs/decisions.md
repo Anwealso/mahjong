@@ -206,3 +206,11 @@ there are never ties.
 - Players can freely reorder their concealed tiles to group partly formed sets. That order lives only in
   the client (and survives updates by tracking `TileId`s). The server keeps hands sorted and never sees
   the order.
+
+## D17. No discard time limit
+
+**Status:** accepted · 2026-10-25
+
+Players can take as long as they like on their own turn; it's a casual game on a call. Disconnected
+players are covered by the autopilot. A generous limit (using the same autopilot) can be added later if
+someone keeps wandering off.

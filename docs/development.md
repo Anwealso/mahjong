@@ -35,7 +35,13 @@ packages/
     testing.ts        stackWall: build an exact wall from hand notation
     clone.ts          deep copy for plain data (keeps the engine free of environment APIs)
     *.test.ts         tests sit next to the code they test
-  server/src/         Node + ws server (placeholder until milestone 3)
+  protocol/src/       zod schemas + types for every client↔server message
+  server/src/         Node + ws server
+    app.ts            HTTP + WebSocket wiring, message routing
+    registry.ts       rooms by code, idle sweep
+    room.ts           one table: lobby, seats, the hand, stale-action checks, claim timer
+    controllers.ts    seat controllers: human, policy-driven (autopilot, random, future bots)
+    index.ts          entry point (PORT, default 8787)
   client/src/         React + Vite app (engine playground until milestone 4)
 package.json          npm workspaces + root scripts
 tsconfig.base.json    shared strict TS config

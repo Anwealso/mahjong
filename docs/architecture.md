@@ -29,7 +29,7 @@ The game rules (Hong Kong Chicken Hand, v1 defaults and configurable variants) a
 ```
 packages/
   engine/    pure rules: tiles, wall, win detection, the hand state machine, scoring, view projection
-  protocol/  (milestone 3) zod schemas + TS types for every client↔server message
+  protocol/  zod schemas + TS types for every client↔server message
   server/    rooms, lobby, seat controllers, claim timers, WebSocket transport
   client/    React UI: lobby, table, hand, action bar
 ```
@@ -176,36 +176,68 @@ payment from [rules.md](rules.md). It's isolated so faan scoring can replace it 
 
 ## Server design
 
-- **Room**: `code` (4 letters), lobby members, 4 seats, `GameState`, `stateVersion` (incremented on every
-  change), action log, claim timer, controllers.
-- **Stale-action protection**: clients send `stateVersion` with each action, and the server rejects
-  mismatches. For example, clicking "Pung" just after the window closed gets rejected instead of applied
-  to the wrong state.
-- **Sessions & reconnect**: on first join the server issues a random `sessionToken`, which the client keeps
-  in `localStorage`. Reconnecting with the token reattaches the same seat (the autopilot gives control
-  back) and the current snapshot is sent straight away.
-- **Lifecycle**: rooms live in a `Map<code, Room>` and are removed after ~30 min with nobody connected. A
-  server restart loses in-progress games in v1. Persisting `seed + action log` to SQLite would make them
+Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (rooms by code),
+`room.ts` (one table), `controllers.ts` (who plays each seat).
+
+- **Room**: a 4-letter code, members, 4 seats, the current `HandState`, a `stateVersion`, the claim timer,
+  and a controller per seat. Every change goes through the room one message at a time, which is what
+  makes claims first come, first served.
+- **Members**: anyone in the room. Seated members play; others just see the lobby (spectating could come
+  later). Seats can't change during a hand. A hand starts when all four seats are filled and someone
+  sends `startHand`.
+- **Stale-action protection**: every action quotes the `stateVersion` it was made against, and mismatches
+  are rejected with `staleState`. For example, clicking "Pung" just after someone else claimed gets
+  rejected instead of being applied to the wrong state. The version goes up on every visible change,
+  **except a pass inside a claim window**. A pass is only sent back to the player who passed, so one
+  player passing never makes another player's pending claim stale.
+- **Claim timer**: when a claim window opens, the room starts a 5-second timer that remembers the version
+  it belongs to. If the window is still open when it fires, the room calls `closeClaimWindow`. State
+  messages include `claimMsLeft` for the countdown.
+- **Seat controllers**: `HumanController` forwards updates to a connection. `PolicyController` runs a
+  `Policy` (a function from view + legal actions to an action) in-process after a short delay.
+  `autopilotPolicy` (pass on claims, discard the drawn tile) covers disconnected players; `randomPolicy`
+  is there for testing; future bots are just smarter policies.
+- **Sessions & reconnect**: `welcome` gives each member a random `sessionToken`, which the client keeps in
+  `localStorage`. Joining again with that token reclaims the same member and seat: the autopilot hands
+  back control and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
+  connection wins.
+- **Lifecycle**: rooms with nobody connected and no activity for 30 minutes are swept away every minute.
+  A server restart loses in-progress games in v1. Persisting `seed + action log` to SQLite would make them
   recoverable later.
+- **Limits**: incoming messages are capped at 16 KB and validated with zod before anything else touches
+  them.
 
-### Protocol (milestone 3, sketch)
+### Protocol
 
-Client → server:
+Defined in `packages/protocol/src/index.ts`. The zod schema for `Action` is checked at compile time to be
+identical to the engine's `Action` type.
+
+Client → server (all validated):
 
 ```ts
-{ t: "join", room: string, name: string, sessionToken?: string }
-{ t: "takeSeat", seat: 0|1|2|3 } | { t: "startGame" }
-{ t: "action", action: Action, stateVersion: number }
+{ t: "createRoom", name }                           // create a room and join it
+{ t: "join", room, name, sessionToken? }            // join, or rejoin as the same member with a token
+{ t: "takeSeat", seat: 0|1|2|3 } | { t: "leaveSeat" }
+{ t: "startHand" }                                  // needs 4 seated players and no hand in progress
+{ t: "action", action: Action, stateVersion }
 ```
 
 Server → client:
 
 ```ts
-{ t: "welcome", sessionToken, you: { seat? } }
-{ t: "lobby", members, seats }
-{ t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[] }
-{ t: "error", code, message }
+{ t: "welcome", room, memberId, sessionToken }
+{ t: "lobby", room, members: { id, name, seat, connected }[], seats, handInProgress }
+{ t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
+{ t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |
+                                // notEnoughPlayers | notSeated | staleState | illegalAction
 ```
+
+### Server tests
+
+- `room.test.ts`: the room with fake connections and stacked walls (lobby rules, per-seat views, stale
+  actions, a pass not making other claims stale, the claim timer, the autopilot, reconnecting).
+- `server.test.ts`: real sockets: a health check, malformed messages, and four random players playing
+  five full hands. Any error other than `staleState` fails the test.
 
 ## Client design
 

@@ -10,8 +10,11 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
-    "@mahjong/protocol": "*",
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@mahjong/engine": "*",
+    "@mahjong/protocol": "*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
     "zustand": "^5.0.16"

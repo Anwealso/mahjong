@@ -1,64 +1,28 @@
-import {
-  buildWall,
-  countTiles,
-  DEFAULT_RULES,
-  formatKinds,
-  isWinningHand,
-  kindOf,
-  sortTiles,
-  waitingKinds,
-} from "@mahjong/engine";
-import { useMemo, useState } from "react";
-import { Tile } from "./Tile";
+import { useEffect } from "react";
+import { useStore } from "./net/store";
+import { JoinScreen } from "./screens/JoinScreen";
+import { LobbyScreen } from "./screens/LobbyScreen";
+import { Table } from "./table/Table";
 
-/**
- * Engine playground until the real lobby/table lands (milestone 4).
- * Deals a hand from a seeded wall; click a tile to discard it and draw the next one.
- */
+/** Join → Lobby → Table, chosen from the store. */
 export function App() {
-  const [seed, setSeed] = useState(() => Math.floor(Math.random() * 2 ** 32));
-  const wall = useMemo(() => buildWall(seed), [seed]);
-  const [drawn, setDrawn] = useState(14);
-  const [hand, setHand] = useState(() => sortTiles(wall.slice(0, 14)));
+  const { session, game, atTable, status, notice, dismissNotice } = useStore();
 
-  const redeal = () => {
-    const next = Math.floor(Math.random() * 2 ** 32);
-    setSeed(next);
-    setHand(sortTiles(buildWall(next).slice(0, 14)));
-    setDrawn(14);
-  };
-
-  const discard = (tile: number) => {
-    const next = wall[drawn];
-    if (next === undefined) return;
-    setHand(sortTiles([...hand.filter((t) => t !== tile), next]));
-    setDrawn(drawn + 1);
-  };
-
-  const won = isWinningHand(countTiles(hand), 0, DEFAULT_RULES);
-  const bestWaits = useMemo(() => {
-    // For each possible discard, what would we be waiting on?
-    const options = hand.map((t) => ({ tile: t, waits: waitingKinds(countTiles(hand.filter((x) => x !== t)), 0, DEFAULT_RULES) }));
-    return new Set(options.filter((o) => o.waits.length > 0).map((o) => o.tile));
-  }, [hand]);
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(dismissNotice, 3000);
+    return () => clearTimeout(timer);
+  }, [notice, dismissNotice]);
 
   return (
-    <main className="playground">
-      <h1>雞糊 Chicken Hand — engine playground</h1>
-      <p className="muted">
-        Seed {seed} · wall {136 - drawn} left · click a tile to discard it and draw the next.
-        {bestWaits.size > 0 && " Highlighted tiles put you one tile from winning."}
-      </p>
-      <div className="hand">
-        {hand.map((t) => (
-          <button key={t} className="tile-button" onClick={() => discard(t)} disabled={won}>
-            <Tile kind={kindOf(t)} highlight={bestWaits.has(t)} />
-          </button>
-        ))}
-      </div>
-      <p className="mono">{formatKinds(hand.map(kindOf))}</p>
-      {won && <p className="win">食糊! Winning hand.</p>}
-      <button onClick={redeal}>Deal again</button>
-    </main>
+    <>
+      {!session ? <JoinScreen /> : game && atTable ? <Table game={game} /> : <LobbyScreen />}
+      {status !== "open" && <div className="connection">Connecting…</div>}
+      {notice && (
+        <div className="notice" onClick={dismissNotice}>
+          {notice.message}
+        </div>
+      )}
+    </>
   );
 }

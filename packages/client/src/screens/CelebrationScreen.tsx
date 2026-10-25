@@ -1,7 +1,8 @@
 import { places, SEATS } from "@mahjong/engine";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useRoom } from "../net/room";
 import { useStore } from "../net/store";
+import { play } from "../sound/player";
 import { formatPoints, Scoreboard } from "./Scoreboard";
 
 const CONFETTI_COLORS = ["#ffd76a", "#ff6b6b", "#4cc9f0", "#80ed99", "#c77dff", "#ff9f1c"];
@@ -21,6 +22,11 @@ export function CelebrationScreen() {
       })),
     [],
   );
+  // The gong as the confetti bursts, then the cheer.
+  useEffect(() => {
+    play("gong");
+    play("cheer", 700);
+  }, []);
   if (!room?.lobby.game) return null;
 
   const { lobby, isHost } = room;

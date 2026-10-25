@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSoundSettings } from "./sound/player";
 
 /**
- * A gear button in the top-right corner that opens a small menu of personal settings (saved per browser).
+ * A gear button in the top-left corner that opens a small menu of personal settings (saved per browser).
  * `M` toggles mute even while it's closed.
  */
 export function SettingsMenu() {

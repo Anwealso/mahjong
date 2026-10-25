@@ -43,15 +43,8 @@ kbd {
 }
 .buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 24px; }
 .lobby a { color: var(--gold); }
-/* The lobby stays centred; side panels (game settings) hang just to its right on wide screens. */
-.lobby { position: relative; }
-.lobby-aside { position: absolute; top: 48px; left: calc(100% + 16px); width: 280px; display: grid; gap: 16px; }
-.lobby-aside section { padding: 16px; border-radius: 12px; background: rgb(0 0 0 / 0.18); }
-.lobby-aside h2 { margin: 0 0 12px; font-size: 1.1rem; }
-/* Too narrow to fit beside the 768px lobby: stack it underneath instead. */
-@media (max-width: 1383px) {
-  .lobby-aside { position: static; width: auto; margin-top: 24px; }
-}
+.game-settings { margin-top: 24px; padding: 16px; border-radius: 12px; background: rgb(0 0 0 / 0.18); }
+.game-settings h2 { margin: 0 0 12px; font-size: 1.1rem; }
 .seats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 24px; }
 .seat-card {
   display: grid;

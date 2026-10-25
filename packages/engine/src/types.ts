@@ -42,8 +42,10 @@ export type Action =
   | { type: "concealedKong"; tiles: TileId[] }
   /** The fourth tile, added to one of your exposed pungs. */
   | { type: "addedKong"; tile: TileId }
-  // In a claim window
+  // In a claim window: take the tile (first come, first served) or pass
+  | { type: "claim" }
   | { type: "pass" }
+  // After claiming: use the tile to win, or to form a set with hand tiles
   | { type: "win" }
   /** Two hand tiles matching the discard. */
   | { type: "pung"; tiles: [TileId, TileId] }
@@ -63,6 +65,8 @@ export type Phase =
    * has passed. The source seat and seats with nothing to claim start out passed.
    */
   | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; passed: boolean[] }
+  /** `seat` claimed `tile` and must now use it: win, or form a set with tiles from their hand. */
+  | { kind: "claimed"; seat: Seat; source: ClaimSource; from: Seat; tile: TileId }
   | { kind: "handOver"; result: HandResult };
 
 export type HandResult =
@@ -102,6 +106,7 @@ export type GameEvent =
   | { type: "melded"; seat: Seat; meld: Meld }
   | { type: "kongAdded"; seat: Seat; tile: TileId }
   | { type: "claimWindowOpened"; source: ClaimSource; from: Seat; tile: TileId }
+  | { type: "claimed"; seat: Seat; from: Seat; tile: TileId }
   | { type: "handOver"; result: HandResult };
 
 export type ApplyResult =

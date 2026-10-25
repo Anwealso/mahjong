@@ -1,5 +1,5 @@
 import { clone } from "./clone";
-import type { TileId } from "./tiles";
+import { countTiles, type TileId } from "./tiles";
 import {
   SEATS,
   seatWind,
@@ -11,12 +11,18 @@ import {
   type Seat,
   type Wind,
 } from "./types";
+import { maxConcealedSets } from "./win";
 
 /** What everyone at the table can see about a player. */
 export interface PublicPlayer {
   seat: Seat;
   wind: Wind;
   handCount: number;
+  /**
+   * How many complete sets the server can find in this player's concealed tiles (best grouping). Shown
+   * to everyone face-down; pairs, partial runs, and set types are never revealed.
+   */
+  concealedSets: number;
   melds: Meld[];
   discards: TileId[];
 }
@@ -25,6 +31,8 @@ export type ViewPhase =
   | { kind: "awaitDiscard"; seat: Seat }
   /** `awaitingYou`: you can still claim or pass. Other seats' answers are never revealed. */
   | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; awaitingYou: boolean }
+  /** `seat` claimed `tile` and is deciding how to use it. */
+  | { kind: "claimed"; seat: Seat; from: Seat; tile: TileId }
   /** At the end of a hand every hand is revealed. */
   | { kind: "handOver"; result: HandResult; hands: TileId[][] };
 
@@ -54,6 +62,8 @@ export function projectView(state: HandState, seat: Seat): PlayerView {
       tile: phase.tile,
       awaitingYou: !phase.passed[seat],
     };
+  } else if (phase.kind === "claimed") {
+    viewPhase = { kind: "claimed", seat: phase.seat, from: phase.from, tile: phase.tile };
   } else viewPhase = { kind: "handOver", result: phase.result, hands: state.players.map((p) => [...p.hand]) };
 
   return clone({
@@ -67,6 +77,7 @@ export function projectView(state: HandState, seat: Seat): PlayerView {
       seat: s,
       wind: seatWind(s, state.dealer),
       handCount: state.players[s]!.hand.length,
+      concealedSets: maxConcealedSets(countTiles(state.players[s]!.hand)),
       melds: state.players[s]!.melds,
       discards: state.players[s]!.discards,
     })),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_RULES, type RuleConfig } from "./rules";
 import { countKinds, formatKinds, parseKinds } from "./tiles";
-import { decompose, isWinningHand, waitingKinds } from "./win";
+import { decompose, isWinningHand, maxConcealedSets, waitingKinds } from "./win";
 
 const counts = (notation: string) => countKinds(parseKinds(notation));
 const wins = (notation: string, exposed = 0, rules: RuleConfig = DEFAULT_RULES) =>
@@ -71,5 +71,28 @@ describe("waitingKinds", () => {
     // A fifth 1c would make 111 + 11, but it doesn't exist.
     expect(waits("1111c 456d 789b EEE")).toBe("");
     expect(waits("1111c 23c 456d 789b E")).toBe("E");
+  });
+});
+
+describe("maxConcealedSets", () => {
+  const sets = (notation: string) => maxConcealedSets(counts(notation));
+
+  it("counts complete sets only, never pairs or partial runs", () => {
+    expect(sets("123c 456d 789b EEE RR")).toBe(4);
+    expect(sets("11c 23d 46b EE RG")).toBe(0);
+    expect(sets("1234c")).toBe(1);
+  });
+
+  it("finds the grouping with the most sets", () => {
+    expect(sets("111222333c")).toBe(3); // three pungs or three chows
+    expect(sets("1112345c")).toBe(2); // 111 + 234 (not 123 + leftover)
+    expect(sets("12233c")).toBe(1);
+    expect(sets("112233c")).toBe(2);
+    expect(sets("1111c")).toBe(1); // four in hand: a pung plus a loose tile until declared as a kong
+  });
+
+  it("doesn't run chows across suits or through honors", () => {
+    expect(sets("89c 1d")).toBe(0);
+    expect(sets("ESW")).toBe(0);
   });
 });

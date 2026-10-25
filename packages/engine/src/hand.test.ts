@@ -76,6 +76,12 @@ function option<T extends Action["type"]>(state: HandState, seat: Seat, type: T)
   return a as Extract<Action, { type: T }>;
 }
 
+/** Claim the tile on offer, then use it with the listed option of this type. */
+function claimAndUse(state: HandState, seat: Seat, type: "win" | "pung" | "kong" | "chow"): HandState {
+  const claimed = act(state, seat, { type: "claim" });
+  return act(claimed, seat, option(claimed, seat, type));
+}
+
 describe("claims", () => {
   // Seat 0 discards 5b. Seat 1 (next) can chow it, seat 2 can pung it, seat 3 can't claim.
   const chowVsPung: StackedWall = {
@@ -93,42 +99,60 @@ describe("claims", () => {
     expect(after.phase).toMatchObject({ kind: "awaitDiscard", seat: 1, drew: true });
   });
 
-  it("offers chow only to the next player, and pung to anyone", () => {
+  it("offers a claim to anyone who could use the tile (chow only for the next player)", () => {
     const state = discardFiveBamboo();
     expect(state.phase.kind).toBe("claimWindow");
-    expect(types(legalActions(state, 1))).toEqual(["chow", "pass"]);
-    expect(types(legalActions(state, 2))).toEqual(["pass", "pung"]);
+    expect(types(legalActions(state, 1))).toEqual(["claim", "pass"]); // could chow
+    expect(types(legalActions(state, 2))).toEqual(["claim", "pass"]); // could pung
     expect(legalActions(state, 3)).toEqual([]); // nothing to claim: auto-passed
     expect(pendingClaimants(state)).toEqual([1, 2]);
 
-    // Same hands with seats 1 and 3 swapped: seat 3 holds 4b 6b but isn't next, so no chow.
+    // Same hands with seats 1 and 3 swapped: seat 3 holds 4b 6b but isn't next, so can't chow or claim.
     const h = chowVsPung.hands;
     const swapped = discardFiveBamboo({ hands: [h[0], h[3], h[2], h[1]] });
     expect(legalActions(swapped, 3)).toEqual([]);
   });
 
-  it("first come, first served: a chow made first beats a pung", () => {
+  it("claiming takes the tile and closes the window; the claimer must then use it", () => {
     let state = discardFiveBamboo();
-    state = act(state, 1, option(state, 1, "chow"));
+    state = act(state, 2, { type: "claim" });
+    expect(state.phase).toMatchObject({ kind: "claimed", seat: 2, from: 0 });
+    expect(state.players[0]!.discards).toEqual([]); // the claimed tile left the pond
+    expect(legalActions(state, 1)).toEqual([]); // too late for anyone else
+    expect(types(legalActions(state, 2))).toEqual(["pung"]); // no pass, no discard: must form a set
+    expect(applyAction(state, 2, { type: "pass" }).ok).toBe(false);
+
+    state = act(state, 2, option(state, 2, "pung"));
+    expect(state.phase).toEqual({ kind: "awaitDiscard", seat: 2, drew: false }); // play skips to the claimer
+    expect(state.players[2]!.melds[0]).toMatchObject({ type: "pung", claimed: { from: 0 } });
+  });
+
+  it("first come, first served: whoever claims first gets it, whatever they want it for", () => {
+    let state = discardFiveBamboo();
+    state = claimAndUse(state, 1, "chow");
     expect(state.phase).toEqual({ kind: "awaitDiscard", seat: 1, drew: false });
     expect(state.players[1]!.melds[0]).toMatchObject({ type: "chow", claimed: { from: 0 } });
-    expect(applyAction(state, 2, option(discardFiveBamboo(), 2, "pung")).ok).toBe(false); // too late
+    expect(applyAction(state, 2, { type: "claim" }).ok).toBe(false);
   });
 
-  it("first come, first served: a pung made first takes it, and play skips to the claimer", () => {
-    let state = discardFiveBamboo();
-    state = act(state, 2, option(state, 2, "pung"));
-    expect(state.phase).toEqual({ kind: "awaitDiscard", seat: 2, drew: false });
-    expect(state.players[2]!.melds[0]).toMatchObject({ type: "pung", claimed: { from: 0 } });
-    expect(state.players[0]!.discards).toEqual([]); // the claimed tile left the pond
-    expect(legalActions(state, 1)).toEqual([]);
+  it("when a tile fits several sets, the claimer chooses which to form", () => {
+    // Seat 1 holds 3b 4b 5b 6b 7b, so a discarded 5b fits three different chows.
+    const wall: StackedWall = {
+      hands: ["5b 147c 258d 369b ESWN", "34567b 147c 258d RG", "369c 147d 1b 9b SSS WhWh", "258c 369d NGGGWh EE"],
+    };
+    let state = discardFiveBamboo(wall);
+    state = act(state, 1, { type: "claim" });
+    const chows = legalActions(state, 1).filter((a) => a.type === "chow");
+    expect(chows).toHaveLength(3); // 345, 456, 567
+    state = act(state, 1, chows[2]!);
+    expect(state.players[1]!.melds[0]!.tiles.map(kindOf)).toEqual(parseKinds("567b"));
   });
 
-  it("waits for everyone who can claim; passing doesn't end the window early for others", () => {
+  it("waits for everyone who can claim; passing doesn't end the window for others", () => {
     let state = discardFiveBamboo();
     state = act(state, 1, { type: "pass" });
     expect(pendingClaimants(state)).toEqual([2]);
-    state = act(state, 2, option(state, 2, "pung"));
+    state = claimAndUse(state, 2, "pung");
     expect(state.phase).toEqual({ kind: "awaitDiscard", seat: 2, drew: false });
   });
 
@@ -150,8 +174,9 @@ describe("claims", () => {
     const wall: StackedWall = {
       hands: ["5b 147c 258d 369b ESWN", "369c 147d 1b 9b SSS WhWh", "555b 258c 369d GGG Wh", "46b 147c 258d EEE RG"],
     };
-    let state = discardFiveBamboo(wall);
-    const fives = state.players[2]!.hand.filter((t) => kindOf(t) === kindOf(state.players[0]!.discards[0]!));
+    let state = act(discardFiveBamboo(wall), 2, { type: "claim" });
+    expect(types(legalActions(state, 2))).toEqual(["kong", "pung"]);
+    const fives = state.players[2]!.hand.filter((t) => kindOf(t) === kindOf((state.phase as { tile: TileId }).tile));
     const chosen: [TileId, TileId] = [fives[2]!, fives[0]!];
     state = act(state, 2, { type: "pung", tiles: chosen });
     expect(state.players[2]!.melds[0]!.tiles).toEqual(expect.arrayContaining(chosen));
@@ -159,12 +184,12 @@ describe("claims", () => {
   });
 
   it("rejects selections that don't form the set or aren't in hand", () => {
-    const state = discardFiveBamboo();
+    const state = act(discardFiveBamboo(), 2, { type: "claim" });
     const pung = option(state, 2, "pung");
     const other = state.players[2]!.hand.find((t) => !pung.tiles.includes(t))!;
     expect(applyAction(state, 2, { type: "pung", tiles: [pung.tiles[0], other] }).ok).toBe(false); // wrong kind
     expect(applyAction(state, 2, { type: "pung", tiles: [pung.tiles[0], pung.tiles[0]] }).ok).toBe(false); // same tile twice
-    const notHeld = state.players[0]!.discards[0]!; // right kind, but it's the discard itself
+    const notHeld = (state.phase as { tile: TileId }).tile; // right kind, but it's the claimed tile itself
     expect(applyAction(state, 2, { type: "pung", tiles: [pung.tiles[0], notHeld] }).ok).toBe(false);
     expect(applyAction(state, 2, { type: "chow", tiles: pung.tiles }).ok).toBe(false); // seat 2 can't chow
   });
@@ -181,23 +206,26 @@ describe("winning on a discard", () => {
     return act(state, 0, { type: "discard", tile: tile(state, 0, "5b") });
   }
 
-  it("the first player to claim the win gets it; the discarder pays", () => {
-    let state = discardFiveBamboo();
-    expect(types(legalActions(state, 1))).toEqual(["chow", "pass", "win"]);
-    expect(types(legalActions(state, 3))).toEqual(["pass", "win"]);
+  it("claim, then win: the discarder pays", () => {
+    let state = act(discardFiveBamboo(), 3, { type: "claim" });
+    expect(types(legalActions(state, 3))).toEqual(["win"]);
     state = act(state, 3, { type: "win" });
     expect(state.phase).toMatchObject({
       kind: "handOver",
       result: { kind: "win", winner: 3, selfDraw: false, from: 0, payments: [-1, 0, 0, 1] },
     });
     expect(state.players[3]!.hand.map(kindOf)).toContain(parseKinds("5b")[0]);
-    expect(applyAction(state, 1, { type: "win" }).ok).toBe(false); // too late
   });
 
-  it("a pung made first beats a win", () => {
-    let state = discardFiveBamboo();
-    state = act(state, 2, option(state, 2, "pung"));
+  it("after claiming, a player who could win may form a set instead", () => {
+    const state = act(discardFiveBamboo(), 1, { type: "claim" });
+    expect(types(legalActions(state, 1))).toEqual(["chow", "win"]);
+  });
+
+  it("a pung claimed first beats a win", () => {
+    let state = claimAndUse(discardFiveBamboo(), 2, "pung");
     expect(state.phase).toEqual({ kind: "awaitDiscard", seat: 2, drew: false });
+    expect(applyAction(state, 3, { type: "claim" }).ok).toBe(false);
   });
 
   it("lets a player pass up a win", () => {
@@ -215,7 +243,8 @@ describe("kongs", () => {
     });
     const wallBefore = state.wall.length;
     state = act(state, 0, { type: "discard", tile: tile(state, 0, "5b") });
-    expect(types(legalActions(state, 2))).toEqual(["kong", "pass", "pung"]);
+    state = act(state, 2, { type: "claim" });
+    expect(types(legalActions(state, 2))).toEqual(["kong", "pung"]);
     state = act(state, 2, option(state, 2, "kong"));
 
     expect(state.players[2]!.melds[0]).toMatchObject({ type: "kong", concealed: false });
@@ -248,7 +277,7 @@ describe("kongs", () => {
     let state = setup(addedKong, rules);
     state = act(state, 0, { type: "discard", tile: tile(state, 0, "5b") });
     state = act(state, 3, { type: "pass" }); // passes up a win: no penalty, can still win later
-    state = act(state, 1, option(state, 1, "pung"));
+    state = claimAndUse(state, 1, "pung");
     state = discardNoClaims(state, 1, "2c");
     state = discardNoClaims(state, 2, "R");
     state = discardNoClaims(state, 3, "N");
@@ -261,7 +290,7 @@ describe("kongs", () => {
     let state = setup(addedKong);
     state = act(state, 0, { type: "discard", tile: tile(state, 0, "5b") });
     state = act(state, 3, { type: "pass" });
-    state = act(state, 1, option(state, 1, "pung"));
+    state = claimAndUse(state, 1, "pung");
     const meldTiles = state.players[1]!.melds[0]!.tiles;
     const discardable = legalActions(state, 1).flatMap((a) => (a.type === "discard" ? [a.tile] : []));
     expect(discardable.some((t) => meldTiles.includes(t))).toBe(false);
@@ -283,8 +312,8 @@ describe("kongs", () => {
     let state = untilFourthFiveBamboo({ robbingKong: true });
     state = act(state, 1, { type: "addedKong", tile: tile(state, 1, "5b") });
     expect(state.phase).toMatchObject({ kind: "claimWindow", source: "addedKong", from: 1 });
-    expect(types(legalActions(state, 3))).toEqual(["pass", "win"]);
-    state = act(state, 3, { type: "win" });
+    expect(types(legalActions(state, 3))).toEqual(["claim", "pass"]);
+    state = claimAndUse(state, 3, "win");
     expect(state.phase).toMatchObject({
       kind: "handOver",
       result: { winner: 3, from: 1, robbedKong: true, selfDraw: false, payments: [0, -1, 0, 1] },
@@ -341,6 +370,22 @@ describe("views", () => {
     expect(JSON.stringify(view)).not.toMatch(/wall"|seed|responses/);
     expect(projectView(state, 0).lastDrawn).toBe(state.lastDrawn);
     expect(projectEvents(events, 1)).toEqual(events);
+  });
+
+  it("shows everyone each player's complete concealed sets, but nothing more", () => {
+    const state = setup({ hands: ["123c 456c 789c 123d 55d", "147c 258d 369b SWNR", "258c 369d 147b SSGWh", "369c 147d 258b NNRG"] });
+    const view = projectView(state, 2);
+    expect(view.players.map((p) => p.concealedSets)).toEqual([4, 0, 0, 0]);
+    expect(Object.keys(view.players[0]!).sort()).toEqual(["concealedSets", "discards", "handCount", "melds", "seat", "wind"]);
+  });
+
+  it("shows that someone claimed the tile, not what for", () => {
+    let state = setup({
+      hands: ["5b 147c 258d 369b ESWN", "46b 147c 258d EEE RG", "55b 258c 369d NGGGWh", "369c 147d 1b 9b SSS WhWh"],
+    });
+    state = act(state, 0, { type: "discard", tile: tile(state, 0, "5b") });
+    state = act(state, 2, { type: "claim" });
+    expect(projectView(state, 3).phase).toEqual({ kind: "claimed", seat: 2, from: 0, tile: (state.phase as { tile: TileId }).tile });
   });
 
   it("hides other players' drawn tiles in events", () => {

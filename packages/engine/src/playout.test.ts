@@ -39,6 +39,8 @@ function checkConservation(state: HandState) {
   for (const p of state.players) all.push(...p.hand, ...p.discards, ...p.melds.flatMap((m) => m.tiles));
   // A tile added to a pung is in limbo while others decide whether to rob the kong.
   if (state.phase.kind === "claimWindow" && state.phase.source === "addedKong") all.push(state.phase.tile);
+  // A claimed tile belongs to nobody until the claimer uses it.
+  if (state.phase.kind === "claimed") all.push(state.phase.tile);
   assert(all.length === NUM_TILES && new Set(all).size === NUM_TILES, () => `tiles not conserved: ${all.length}`);
 }
 
@@ -67,11 +69,14 @@ function checkViews(state: HandState) {
       ...view.hand,
       ...(view.lastDrawn === null ? [] : [view.lastDrawn]),
       ...view.players.flatMap((p) => [...p.discards, ...p.melds.flatMap((m) => m.tiles)]),
-      ...(view.phase.kind === "claimWindow" ? [view.phase.tile] : []),
+      ...(view.phase.kind === "claimWindow" || view.phase.kind === "claimed" ? [view.phase.tile] : []),
     ];
     const leaked = visible.filter((t) => secret.has(t));
     assert(leaked.length === 0, () => `seat ${seat} can see secret tiles ${leaked}`);
     assert(view.hand.join() === state.players[seat]!.hand.join(), () => `seat ${seat} sees the wrong hand`);
+    for (const p of view.players) {
+      assert(p.concealedSets * 3 <= p.handCount, () => `seat ${p.seat} shows ${p.concealedSets} sets in ${p.handCount} tiles`);
+    }
     assert(Object.keys(view).sort().join() === VIEW_KEYS, () => `unexpected view keys ${Object.keys(view)}`);
   }
 }

@@ -66,7 +66,11 @@ export function startHand(options: StartHandOptions): { state: HandState; events
 export function legalActions(state: HandState, seat: Seat): Action[] {
   const { phase } = state;
   if (phase.kind === "awaitDiscard") return phase.seat === seat ? turnOptions(state, seat, phase.drew) : [];
-  if (phase.kind === "claimWindow") return phase.passed[seat] ? [] : claimOptions(state, seat, phase);
+  if (phase.kind === "claimWindow") {
+    if (phase.passed[seat] || useOptions(state, seat, phase).length === 0) return [];
+    return [{ type: "claim" }, { type: "pass" }];
+  }
+  if (phase.kind === "claimed") return phase.seat === seat ? useOptions(state, seat, phase) : [];
   return [];
 }
 
@@ -94,12 +98,20 @@ function turnOptions(state: HandState, seat: Seat, drew: boolean): Action[] {
 }
 
 type ClaimWindow = Extract<Phase, { kind: "claimWindow" }>;
+type Claimed = Extract<Phase, { kind: "claimed" }>;
 
-/** What `seat` could do with the tile in the window. Includes `pass` only when there's something to pass on. */
-function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action[] {
-  if (seat === window.from) return [];
+/**
+ * The ways `seat` could use the tile on offer: win with it, or form a set with it. A seat may only claim
+ * the tile if this isn't empty, so a claimer always has at least one way to use it.
+ */
+function useOptions(
+  state: HandState,
+  seat: Seat,
+  offer: { source: ClaimSource; from: Seat; tile: TileId },
+): Action[] {
+  if (seat === offer.from) return [];
   const player = state.players[seat]!;
-  const kind = kindOf(window.tile);
+  const kind = kindOf(offer.tile);
   const counts = countTiles(player.hand);
   const ofKind = (k: TileKind) => player.hand.filter((t) => kindOf(t) === k);
   const actions: Action[] = [];
@@ -109,11 +121,11 @@ function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action
   if (isWinningHand(withTile, player.melds.length, state.rules)) actions.push({ type: "win" });
 
   // A tile added to a pung can only be claimed to win (robbing the kong).
-  if (window.source === "discard") {
+  if (offer.source === "discard") {
     const same = ofKind(kind);
     if (same.length >= 2) actions.push({ type: "pung", tiles: [same[0]!, same[1]!] });
     if (same.length >= 3 && state.wall.length > 0) actions.push({ type: "kong", tiles: [same[0]!, same[1]!, same[2]!] });
-    if (seat === nextSeat(window.from) && isSuited(kind)) {
+    if (seat === nextSeat(offer.from) && isSuited(kind)) {
       for (let start = Math.max(0, kind - 2); start <= kind; start++) {
         if (!canStartChow(start)) continue;
         const [a, b] = [start, start + 1, start + 2].filter((k) => k !== kind) as [TileKind, TileKind];
@@ -123,8 +135,6 @@ function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action
       }
     }
   }
-
-  if (actions.length > 0) actions.push({ type: "pass" });
   return actions;
 }
 
@@ -172,7 +182,11 @@ export function applyAction(prev: HandState, seat: Seat, action: Action): ApplyR
     if (action.type === "pass") {
       phase.passed[seat] = true;
       if (phase.passed.every(Boolean)) noClaim(state, events);
-    } else claim(state, events, seat, action);
+    } else claim(state, events, seat);
+    return { ok: true, state, events };
+  }
+  if (phase.kind === "claimed") {
+    useClaimedTile(state, events, seat, action);
     return { ok: true, state, events };
   }
 
@@ -227,17 +241,27 @@ function openClaimWindow(state: HandState, events: GameEvent[], source: ClaimSou
   const window: ClaimWindow = { kind: "claimWindow", source, from, tile, passed: [false, false, false, false] };
   state.phase = window;
   // Seats with nothing to claim pass immediately, so nobody waits on them.
-  for (const s of SEATS) if (claimOptions(state, s, window).length === 0) window.passed[s] = true;
+  for (const s of SEATS) if (useOptions(state, s, window).length === 0) window.passed[s] = true;
 
   if (window.passed.every(Boolean)) noClaim(state, events);
   else events.push({ type: "claimWindowOpened", source, from, tile });
 }
 
-/** First come, first served: a valid claim takes the tile immediately and closes the window. */
-function claim(state: HandState, events: GameEvent[], seat: Seat, action: Action) {
+/**
+ * First come, first served: the first claim takes the tile and closes the window. The claimer then has to
+ * use it (`useClaimedTile`). Other players learn that a claim happened, not what it's for.
+ */
+function claim(state: HandState, events: GameEvent[], seat: Seat) {
   const { source, from, tile } = state.phase as ClaimWindow;
-  const player = state.players[seat]!;
   if (source === "discard") state.players[from]!.discards.pop();
+  state.phase = { kind: "claimed", seat, source, from, tile };
+  events.push({ type: "claimed", seat, from, tile });
+}
+
+/** Win with the claimed tile, or form it into a set with the selected hand tiles. */
+function useClaimedTile(state: HandState, events: GameEvent[], seat: Seat, action: Action) {
+  const { source, from, tile } = state.phase as Claimed;
+  const player = state.players[seat]!;
 
   if (action.type === "win") {
     player.hand = sortTiles([...player.hand, tile]);
@@ -245,7 +269,7 @@ function claim(state: HandState, events: GameEvent[], seat: Seat, action: Action
     return;
   }
   if (action.type !== "pung" && action.type !== "kong" && action.type !== "chow") {
-    throw new Error(`Not a claim: ${action.type}`);
+    throw new Error(`Can't use a claimed tile with ${action.type}`);
   }
 
   removeTiles(player.hand, action.tiles);

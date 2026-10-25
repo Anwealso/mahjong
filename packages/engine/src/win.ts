@@ -85,6 +85,48 @@ export function isWinningHand(counts: readonly number[], exposedMelds: number, r
 }
 
 /**
+ * The most complete sets (pungs or chows) that can be made from these tiles, ignoring everything else.
+ * This is the public "progress" shown to other players: complete sets only, never pairs or partial runs.
+ */
+export function maxConcealedSets(counts: readonly number[]): number {
+  let total = 0;
+  for (let k = 27; k < NUM_KINDS; k++) total += counts[k]! >= 3 ? 1 : 0; // honors: pungs only
+  for (let suit = 0; suit < 3; suit++) total += suitSets(counts.slice(suit * 9, suit * 9 + 9));
+  return total;
+}
+
+/** Best set count per suit pattern. Patterns repeat constantly and the answer never changes, so cache it. */
+const suitSetsCache = new Map<string, number>();
+
+function suitSets(counts: number[]): number {
+  const key = counts.join("");
+  let best = suitSetsCache.get(key);
+  if (best === undefined) {
+    best = maxSuitSets(counts, 0);
+    suitSetsCache.set(key, best);
+  }
+  return best;
+}
+
+/** Best number of sets within one suit, from rank `i` up. At each rank, try every mix of pung and chows. */
+function maxSuitSets(counts: number[], i: number): number {
+  while (i < 9 && counts[i] === 0) i++;
+  if (i >= 9) return 0;
+  let best = 0;
+  for (let pungs = 0; pungs <= (counts[i]! >= 3 ? 1 : 0); pungs++) {
+    const left = counts[i]! - pungs * 3;
+    const maxChows = i <= 6 ? Math.min(left, counts[i + 1]!, counts[i + 2]!) : 0;
+    for (let chows = 0; chows <= maxChows; chows++) {
+      const next = [...counts];
+      next[i] = 0; // whatever's left at this rank is loose
+      if (chows) (next[i + 1]! -= chows), (next[i + 2]! -= chows);
+      best = Math.max(best, pungs + chows + maxSuitSets(next, i + 1));
+    }
+  }
+  return best;
+}
+
+/**
  * Which kinds would complete this hand (13-tile shape, i.e. waiting)? Used for the "you're waiting on" hint.
  * A kind is excluded when the player already holds all four copies.
  */

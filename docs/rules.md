@@ -83,10 +83,11 @@ your own exposed pung.
 draw, and are shown to the table so everyone knows their kind.
 
 **Personal groups are free.** Players may group their own concealed tiles into "soft" sets to keep track
-of them, and take tiles out, add tiles, or regroup at any time. These groups have no meaning in the rules,
-are never formed automatically, and are **private**: they live only on the player's own screen (saved in
-the browser so they survive a refresh). You never need them to win: the engine checks the whole hand when
-you declare a win.
+of them. Only a **complete set** (a pung or chow of three loose tiles) can be grouped; groups sit to the
+left of your loose tiles, and you can ungroup one at any time. Discarding or using a grouped tile simply
+breaks that group up. These groups have no meaning in the rules, are never formed automatically, and are
+**private**: they live only on the player's own screen (saved in the browser so they survive a refresh).
+You never need them to win: the engine checks the whole hand when you declare a win.
 
 Any concealed tile may be discarded, including straight after a claim. For example, after claiming a `4`
 to chow `456` you may discard a `7` you were holding. (Some rule sets ban this; casual Hong Kong play

@@ -115,7 +115,7 @@ The client stores very little: connection status, lobby info, and the latest ser
 wholesale on each update). Local UI details like the selected tile stay in `useState`.
 
 **Why Zustand:** the WebSocket lives outside the React tree and can write straight to the store
-(`useGame.setState(...)`) with no provider. Components use selectors, so only the parts that changed
+(`useStore.setState(...)`) with no provider. Components use selectors, so only the parts that changed
 re-render (e.g. the claim countdown ticking doesn't re-render your hand). It's about 1 KB with no
 boilerplate.
 
@@ -249,3 +249,41 @@ runs means the table sees "one set from winning", never "one tile from winning".
 
 **Considered:** showing the player's own groups to others (rejected: it rewards not using the feature);
 also showing pairs and partial runs (rejected: it would reveal when someone is one tile from winning).
+
+## D20. Random-move bots from the lobby
+
+**Status:** accepted · 2026-10-25
+
+A lobby button, **Fill empty seats with bots**, fills every empty seat with a bot that plays random legal
+moves (`randomPolicy`, taking wins when offered). It's in every build, not just development: it makes solo
+testing easy and lets three friends play. A person taking a bot's seat replaces the bot. Bots act after
+1.5 s so the table is followable.
+
+**Protocol:** one new message, `addBots`; lobby members gain `bot: boolean`.
+
+**Considered:** a dev-only button (rejected: a short-handed table is a real use); smarter bots now
+(deferred: they're just new policies, milestone 7).
+
+## D21. Table interactions: selection toolbar, grouping, and claiming
+
+**Status:** accepted · 2026-10-25 · refines the personal groups in [D19](#d19-personal-groups-are-private-everyone-sees-complete-concealed-set-counts)
+
+- **Layout:** you at the bottom, the next player on your right, opposite at the top, previous on your
+  left; each player's discards in front of them in the centre.
+- **Arranging:** drag loose tiles to reorder (`dnd-kit`). **Sort** tidies only the loose tiles.
+- **Grouping:** only a **complete set** (pung or chow) of loose tiles can be grouped: select it and press
+  `G` or the floating **Group** button. Groups sit to the left of the loose tiles. Ungroup with `G` on the
+  selected group or the Ungroup button above it. Discarding or using a grouped tile breaks the group up.
+- **Discarding:** select a tile, then press the **Discard** button floating above it, or `Enter`. Never a
+  single click, so a misclick can't throw a tile away.
+- **Claiming:** the claimable discard glows; click it (in the centre or in its pond) or press `Space`.
+- **Using the tile:** with one possible use, its tiles are pre-selected and one click or `Enter`
+  confirms. With several, each option is highlighted in its own colour and has a coloured button; click a
+  highlighted tile (or the button) to choose. This doesn't contradict [D16](#d16-players-select-tiles-to-form-sets-hand-order-is-client-side-only):
+  the client suggests tiles, the player confirms, and the server still never picks tiles itself.
+- **Tile art:** CSS placeholders stay ([D12](#d12-placeholder-css-tiles-first)); `Tile.tsx` is the only
+  place tiles are drawn, so swapping in an SVG set touches one file.
+
+**Why:** grouping only complete sets keeps groups meaningful (they mirror what the table's
+`concealedSets` count shows); a floating toolbar puts the action next to the tiles it applies to; and
+keyboard shortcuts keep the first-come claim race fair for keyboard players.

@@ -79,12 +79,12 @@ interface SeatController {
 ```
 
 - `HumanController` forwards updates over that player's WebSocket and passes incoming actions to the room.
-- `BotController` (future) runs a strategy function in the same process. It receives the same
+- `PolicyController` runs a strategy function (a `Policy`) in the same process: the autopilot, the
+  random-move bots from the lobby's "Fill empty seats with bots" button, and future smarter bots. It receives the same
   `PlayerView` as a human, so a bot can't cheat by looking at hidden tiles, and its actions go through the
   same validation path.
-- `AutopilotController` (v1, tiny): used when a human disconnects. It passes on claims and discards the
-  tile it just drew once a timeout expires, so the game never stalls. It's the simplest possible bot, so
-  the bot interface gets exercised from day one.
+- The autopilot policy is used when a human disconnects. It passes on claims and discards the tile it
+  just drew after a short delay, so the game never stalls.
 
 Swapping a seat between human, autopilot, and bot is just replacing its controller.
 
@@ -201,7 +201,10 @@ Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (
 - **Seat controllers**: `HumanController` forwards updates to a connection. `PolicyController` runs a
   `Policy` (a function from view + legal actions to an action) in-process after a short delay.
   `autopilotPolicy` (pass on claims, discard the drawn tile) covers disconnected players; `randomPolicy`
-  is there for testing; future bots are just smarter policies.
+  plays the bots; future bots are just smarter policies.
+- **Bots**: `addBots` fills every empty seat with a bot member (`bot: true`, never connected, named
+  "Bot N") that plays `randomPolicy` after `botDelayMs` (1.5 s). Seats are only filled between hands. A
+  person taking a bot's seat removes the bot.
 - **Sessions & reconnect**: `welcome` gives each member a random `sessionToken`, which the client keeps in
   `localStorage`. Joining again with that token reclaims the same member and seat: the autopilot hands
   back control and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
@@ -222,7 +225,8 @@ Client → server (all validated):
 ```ts
 { t: "createRoom", name }                           // create a room and join it
 { t: "join", room, name, sessionToken? }            // join, or rejoin as the same member with a token
-{ t: "takeSeat", seat: 0|1|2|3 } | { t: "leaveSeat" }
+{ t: "takeSeat", seat: 0|1|2|3 } | { t: "leaveSeat" }   // taking a bot's seat replaces the bot
+{ t: "addBots" }                                    // fill empty seats with random-move bots
 { t: "startHand" }                                  // needs 4 seated players and no hand in progress
 { t: "action", action: Action, stateVersion }
 ```
@@ -231,7 +235,7 @@ Server → client:
 
 ```ts
 { t: "welcome", room, memberId, sessionToken }
-{ t: "lobby", room, members: { id, name, seat, connected }[], seats, handInProgress }
+{ t: "lobby", room, members: { id, name, seat, connected, bot }[], seats, handInProgress }
 { t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
 { t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |
                                 // notEnoughPlayers | notSeated | staleState | illegalAction
@@ -240,29 +244,47 @@ Server → client:
 ### Server tests
 
 - `room.test.ts`: the room with fake connections and stacked walls (lobby rules, per-seat views, stale
-  actions, a pass not making other claims stale, the claim timer, the autopilot, reconnecting).
+  actions, a pass not making other claims stale, the claim timer, the autopilot, reconnecting, bots).
 - `server.test.ts`: real sockets: a health check, malformed messages, and four random players playing
   five full hands. Any error other than `staleState` fails the test.
 
 ## Client design
 
-- Zustand store holding `{ connection, lobby, latest snapshot }`, plus one WebSocket hook that reconnects
-  automatically.
-- Screens: **Join** (room code + nickname) → **Lobby** (pick a seat, start) → **Table**.
-- Table layout: your hand along the bottom; opponents' face-down hands and exposed melds to the left, top,
-  and right; a discard pond per player in the middle; wall count and prevailing wind in the center.
-- **Your hand is yours to arrange:** drag tiles into any order, and group them into private "soft" sets you
-  can change at any time. Order and groups are kept client-side by `TileId` in `localStorage` (so they
-  survive a refresh). New tiles are added at the end. None of it is sent to the server.
-- **Claiming:** during a claim window the discard is clickable if you could use it. Clicking sends
-  `claim`. Then the client shows the ways you can use it (win, or which set). For a set, the tiles that fit
-  are highlighted and you pick them; then the action is sent with exactly those tiles.
-- **Concealed kong:** select the four tiles, then declare. Nothing is ever formed automatically.
-- **Opponents:** locked sets face up, then `concealedSets` face-down groups of three, then the remaining
-  tiles face down and loose.
-- Action bar: rendered straight from `legalActions`, with a countdown ring during claim windows. Keyboard
-  shortcuts for speed (e.g. `P` pung, `C` chow, `K` kong, `H` win, `Space` pass).
-- Tiles: CSS boxes with labels in v1, swapped for an open-source SVG tile set later.
+Code: `packages/client/src`. Rendering only; every rule decision comes from the server's `legalActions`.
+
+- **`net/`**: `socket.ts` (one WebSocket to `/ws`, reconnecting with backoff) and `store.ts` (Zustand:
+  connection status, session, lobby, latest snapshot, notices). The session (`room`, `memberId`,
+  `sessionToken`) is kept in `localStorage`, so a refresh rejoins the same seat; the room code also goes in
+  the URL hash (`/#ABCD`) so the link can be shared. A `staleState` error shows "Too late: someone else got
+  there first".
+- **Screens**: **Join** (name + room code, or create a room) → **Lobby** (seats, "Fill empty seats with
+  bots", deal) → **Table**. A new deal switches to the table; "Back to lobby" after a hand returns.
+- **Table layout**: rotated so you're at the bottom; the next player (in turn order) is on your right,
+  opposite across the top, previous on your left. Each player's discards sit in front of them in the
+  centre, with the latest discard outlined. The centre shows the prevailing wind, the wall count, and the
+  tile on offer during a claim window.
+- **Opponents**: locked sets face up, then `concealedSets` face-down groups of three, then the remaining
+  tiles face down and loose. At the end of the hand every hand is shown face up.
+- **Your hand** (`table/MyHand.tsx`, logic in `hand/arrangement.ts`): locked sets on the far left, then
+  your private groups, then loose tiles. Loose tiles can be dragged into any order (`dnd-kit`); **Sort**
+  (`S`) tidies only the loose tiles. Only a complete set of loose tiles can be grouped. Order and groups
+  are stored by `TileId` in `localStorage` per room and member; tiles that leave the hand drop out, a
+  group that loses a tile breaks up, and new tiles are added at the end (the drawn tile is set slightly
+  apart).
+- **Selecting**: click tiles to select them; a **toolbar floats above the selection** with what you can
+  do with it: **Discard** (`Enter`), **Group** / **Ungroup** (`G`), **Kong** (four of a kind, `K`), **Add
+  to kong** (`K`). Each group also shows an Ungroup button on hover.
+- **Claiming**: the claimable discard glows in its pond and in the centre, with a countdown ring from
+  `claimMsLeft`. Click it or press `Space` to claim; `Esc` passes.
+- **Using a claimed tile** (`hand/claimOptions.ts`): if there's only one way to use it, its tiles are
+  pre-selected and one click (or `Enter`) confirms. With several, each set option gets its own colour:
+  its candidate tiles are outlined in that colour and the action bar shows a button per option. Clicking
+  a tile chooses an option that uses it (clicking a tile shared by several options cycles through them),
+  and the floating button confirms. `P` / `C` / `K` choose pung / chow / kong options, `H` wins. Tiles
+  are picked from loose tiles before grouped ones. The server only ever receives the tiles you confirmed.
+- **Action bar**: a status line plus buttons built from `legalActions` (claim, pass, win, set options).
+- **Tiles**: `Tile.tsx` draws every tile (CSS boxes with labels for now, in three sizes), so an SVG tile
+  set can replace it in one place.
 
 ## Build order
 

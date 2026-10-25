@@ -7,8 +7,8 @@ Milestones in build order. Each one should end with passing tests and something 
 | 1 | Engine core | ✅ Done |
 | 2 | Engine: hand state machine | ✅ Done |
 | 3 | Server + protocol | ✅ Done |
-| 4 | Client table UI | ⏭ Next |
-| 5 | Full game (multiple hands) | — |
+| 4 | Client table UI | ✅ Done |
+| 5 | Full game (multiple hands) | ⏭ Next |
 | 6 | Resilience + deploy | — |
 | 7 | Later / nice-to-haves | — |
 
@@ -40,15 +40,20 @@ Milestones in build order. Each one should end with passing tests and something 
 - Not yet: dealer rotation and running scores (milestone 5). Every hand is currently dealt with seat 0 as
   dealer.
 
-## 4. Client table UI
+## 4. Client table UI ✅
 
-- Zustand store and WebSocket connection module (`client/src/net/`).
-- Screens: Join → Lobby → Table.
+- Zustand store and WebSocket connection module (`client/src/net/`), rejoining after a refresh.
+- Screens: Join → Lobby → Table. "Fill empty seats with bots" in the lobby (random-move bots, [D20](decisions.md#d20-random-move-bots-from-the-lobby)).
 - Table: your hand, opponents' melds and face-down hands, discard ponds, wall count, prevailing wind.
-- Drag to reorder your hand and keep private soft groups (client-side only, saved in `localStorage`).
-- Click a discard to claim it, then choose how to use it (win, or which set and which tiles).
+- Drag to reorder your hand; private groups of complete sets on the left, saved in `localStorage`
+  ([D21](decisions.md#d21-table-interactions-selection-toolbar-grouping-and-claiming)).
+- Click the discard (or press Space) to claim it, then choose how to use it: pre-selected when there's
+  one way, colour-coded options when there are several.
 - Opponents shown with locked sets face up and their complete concealed sets face down.
-- Action bar built from `legalActions`, claim countdown, keyboard shortcuts.
+- Floating toolbar above the selection, action bar built from `legalActions`, claim countdown, keyboard
+  shortcuts.
+- End-of-hand panel with the result, payments and every hand revealed.
+- Not yet: animations, sounds, SVG tiles (milestone 7); dealer rotation and running scores (milestone 5).
 
 ## 5. Full game
 

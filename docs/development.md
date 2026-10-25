@@ -17,6 +17,10 @@ npm run typecheck   # tsc in every package
 In development, Vite proxies `/ws` to the server, so the client always connects to the same origin.
 `GET http://localhost:8787/health` is a quick check that the server is running.
 
+To try the table on your own: create a room, sit down, click **Fill empty seats with bots**, then **Deal**.
+The bots play random legal moves (including random claims). Open a second browser profile to play as two
+people.
+
 ## Repo layout
 
 ```
@@ -42,7 +46,12 @@ packages/
     room.ts           one table: lobby, seats, the hand, stale-action checks, claim timer
     controllers.ts    seat controllers: human, policy-driven (autopilot, random, future bots)
     index.ts          entry point (PORT, default 8787)
-  client/src/         React + Vite app (engine playground until milestone 4)
+  client/src/         React + Vite app
+    net/              socket.ts (reconnecting WebSocket), store.ts (Zustand: session, lobby, snapshot)
+    screens/          JoinScreen, LobbyScreen
+    table/            Table (layout, ponds, centre, action bar, end of hand), MyHand, Melds, useTableControls
+    hand/             arrangement.ts (order + private groups), claimOptions.ts (ways to use a claimed tile)
+    Tile.tsx          the only component that draws a tile
 package.json          npm workspaces + root scripts
 tsconfig.base.json    shared strict TS config
 vitest.config.ts      one test runner for all packages

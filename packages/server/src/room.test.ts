@@ -20,22 +20,33 @@ class FakeConnection implements Connection {
   get lobby(): LobbyMessage {
     return this.messages.findLast((m) => m.t === "lobby") as LobbyMessage;
   }
+  get token(): string {
+    const w = this.messages.find((m) => m.t === "welcome");
+    if (w?.t !== "welcome") throw new Error("No welcome");
+    return w.sessionToken;
+  }
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-// Seat 0 discards 5b: seat 1 (next) can chow it, seat 2 can pung it, seat 3 can't claim.
+// Hands are listed from the dealer round the table (the dealer's first, with 14 tiles).
+// The dealer discards 5b: the next seat can chow it, the one after can pung it, the last can't claim.
 const CHOW_VS_PUNG = ["5b 147c 258d 369b ESWN", "46b 147c 258d EEE RG", "55b 258c 369d NGGGWh", "369c 147d 1b 9b SSS WhWh"];
-// Nobody can claim seat 0's 5b.
+// Nobody can claim the dealer's 5b.
 const QUIET = ["5b 147c 258d 369b ESWN", "147c 258d 369b SWNR", "258c 369d 147b SSGWh", "369c 147d 258b NNRG"];
+// The dealer can win straight away by self-draw.
+const DEALER_WINS = ["123c 456c 789c 123d 55d", ...QUIET.slice(1)];
+// The next seat wins on the dealer's 5b, so the deal passes on.
+const NEXT_WINS = ["5b 147c 258d 369b ESWN", "46b 123c 456c 789c 11d", ...QUIET.slice(2)];
+
+/** Seat `s` gets the hand `(s - dealer)` places round from the dealer. */
+const wallFor = (hands: string[]) => (dealer: Seat) =>
+  stackWall({ hands: [0, 1, 2, 3].map((s) => hands[(s - dealer + 4) % 4]!) as [string, string, string, string], dealer });
+
+const OPTIONS: RoomOptions = { claimWindowMs: 40, botDelayMs: 1, readyMs: 60, idleMs: 60, voteRemoveMs: 40, firstDealer: () => 0 };
 
 function setup(hands?: string[], options: Partial<RoomOptions> = {}) {
-  const room = new Room("TEST", {
-    claimWindowMs: 40,
-    autopilotDelayMs: 5,
-    wallForNextHand: () => (hands ? stackWall({ hands: hands as [string, string, string, string] }) : undefined),
-    ...options,
-  });
+  const room = new Room("TEST", { ...OPTIONS, wallForNextHand: hands ? wallFor(hands) : undefined, ...options });
   const conns = [0, 1, 2, 3].map(() => new FakeConnection());
   const ids = conns.map((c, i) => room.join(`P${i}`, undefined, c));
   ids.forEach((id, i) => expect(room.takeSeat(id, i as Seat)).toBeNull());
@@ -44,43 +55,96 @@ function setup(hands?: string[], options: Partial<RoomOptions> = {}) {
 
 function start(hands?: string[], options: Partial<RoomOptions> = {}) {
   const ctx = setup(hands, options);
-  expect(ctx.room.startHand(ctx.ids[0]!)).toBeNull();
+  expect(ctx.room.startGame(ctx.ids[0]!)).toBeNull();
   return ctx;
 }
+
+type Ctx = ReturnType<typeof start>;
 
 const fiveBamboo = (conn: FakeConnection): TileId =>
   conn.state.view.hand.find((t) => kindOf(t) === parseKinds("5b")[0])!;
 
-function act(ctx: ReturnType<typeof start>, seat: Seat, action: Action) {
+function act(ctx: Ctx, seat: Seat, action: Action) {
   expect(ctx.room.act(ctx.ids[seat]!, action, ctx.conns[seat]!.state.stateVersion)).toBeNull();
 }
 
+/** With NEXT_WINS: the dealer discards 5b and the next seat claims it and wins. */
+function nextSeatWins(ctx: Ctx, dealer: Seat) {
+  const next = ((dealer + 1) % 4) as Seat;
+  act(ctx, dealer, { type: "discard", tile: fiveBamboo(ctx.conns[dealer]!) });
+  act(ctx, next, { type: "claim" });
+  act(ctx, next, { type: "win" });
+}
+
+const readyAll = (ctx: Ctx) => ctx.ids.forEach((id) => ctx.room.setReady(id));
+
 describe("lobby", () => {
-  it("needs all four seats to start, and locks seats during a hand", () => {
-    const room = new Room("TEST");
+  it("the creator hosts; only the host starts the game, and only with four seats filled", () => {
+    const room = new Room("TEST", OPTIONS);
     const a = new FakeConnection();
     const b = new FakeConnection();
     const idA = room.join("Ann", undefined, a);
     const idB = room.join("Ben", undefined, b);
+    expect(b.lobby.hostId).toBe(idA);
     room.takeSeat(idA, 0);
     expect(room.takeSeat(idB, 0)?.code).toBe("seatTaken");
-    expect(room.startHand(idA)?.code).toBe("notEnoughPlayers");
+    expect(room.startGame(idA)?.code).toBe("notEnoughPlayers");
+    expect(room.addBots(idB)?.code).toBe("notHost");
+    expect(room.addBots(idA)).toBeNull();
+    expect(room.startGame(idB)?.code).toBe("notHost");
+    expect(room.startGame(idA)).toBeNull();
+    expect(b.lobby.phase).toBe("hand");
+    room.dispose();
+  });
 
+  it("seats are fixed during a game", () => {
     const ctx = start(QUIET);
-    expect(ctx.room.takeSeat(ctx.ids[0]!, 1)?.code).toBe("handInProgress");
-    expect(ctx.room.startHand(ctx.ids[0]!)?.code).toBe("handInProgress");
-    expect(ctx.conns[3]!.lobby.handInProgress).toBe(true);
+    expect(ctx.room.takeSeat(ctx.ids[0]!, 1)?.code).toBe("seatTaken");
+    expect(ctx.room.startGame(ctx.ids[0]!)?.code).toBe("handInProgress");
   });
 
-  it("broadcasts members and seats to everyone", () => {
-    const { conns } = setup();
-    expect(conns[0]!.lobby.members.map((m) => [m.name, m.seat])).toEqual([
-      ["P0", 0],
-      ["P1", 1],
-      ["P2", 2],
-      ["P3", 3],
-    ]);
+  it("hosting passes to the longest-present connected person", () => {
+    const { room, conns, ids } = setup();
+    room.disconnect(ids[0]!, conns[0]!);
+    expect(conns[2]!.lobby.hostId).toBe(ids[1]);
+    room.join("P0", conns[0]!.token, new FakeConnection());
+    expect(conns[2]!.lobby.hostId).toBe(ids[1]);
   });
+
+  it("the host can remove someone from their seat", () => {
+    const { room, conns, ids } = setup();
+    expect(room.removeMember(ids[1]!, ids[2]!)?.code).toBe("notHost");
+    expect(room.removeMember(ids[0]!, ids[2]!)).toBeNull();
+    expect(conns[0]!.lobby.seats[2]).toBeNull();
+  });
+});
+
+describe("bots", () => {
+  it("fill the empty seats, give them up to people, and play whole hands", async () => {
+    const room = new Room("TEST", OPTIONS);
+    const conn = new FakeConnection();
+    const id = room.join("Ann", undefined, conn);
+    room.takeSeat(id, 2);
+    expect(room.addBots(id)).toBeNull();
+    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([0, 1, 3]);
+
+    // Taking a bot's seat replaces the bot.
+    expect(room.takeSeat(id, 0)).toBeNull();
+    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([1, 3]);
+    room.addBots(id);
+
+    // Ann discards whatever she's offered and never claims; the bots play everything else.
+    conn.send = (m) => {
+      conn.messages.push(m);
+      if (m.t !== "state" || m.legalActions.length === 0) return;
+      const action = m.legalActions.find((a) => a.type === "pass" || a.type === "discard") ?? m.legalActions[0]!;
+      setTimeout(() => room.act(id, action, m.stateVersion));
+    };
+    expect(room.startGame(id)).toBeNull();
+    while (conn.lobby.phase === "hand") await sleep(10);
+    expect(conn.state.view.phase.kind).toBe("handOver");
+    room.dispose();
+  }, 10_000);
 });
 
 describe("hand flow", () => {
@@ -135,100 +199,161 @@ describe("hand flow", () => {
   });
 });
 
-describe("disconnects", () => {
-  it("the autopilot plays for a disconnected player", async () => {
+describe("dropouts", () => {
+  it("a disconnected player's turn waits for the host; a bot can take over, and they get the seat back", async () => {
     const ctx = start(QUIET);
-    ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
-    expect(ctx.conns[0]!.lobby.members[1]!.connected).toBe(false);
     act(ctx, 0, { type: "discard", tile: fiveBamboo(ctx.conns[0]!) });
+    ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
+    expect(ctx.conns[0]!.lobby.seatInfo[1]!.issue).toBe("offline");
+    await sleep(80);
+    expect(ctx.conns[0]!.state.view.phase).toEqual({ kind: "awaitDiscard", seat: 1 }); // nobody plays for them
+
+    expect(ctx.room.replaceWithBot(ctx.ids[2]!, 1)?.code).toBe("notHost");
+    expect(ctx.room.replaceWithBot(ctx.ids[0]!, 1)).toBeNull();
     await sleep(30);
     expect(ctx.conns[0]!.state.view.players[1]!.discards).toHaveLength(1);
-    expect(ctx.conns[0]!.state.view.phase).toMatchObject({ seat: 2 });
+    expect(ctx.conns[0]!.lobby.seatInfo[1]).toMatchObject({ issue: null, reservedFor: ctx.ids[1] });
+
+    const back = new FakeConnection();
+    expect(ctx.room.join("P1", ctx.conns[1]!.token, back)).toBe(ctx.ids[1]);
+    expect(back.lobby.seats[1]).toBe(ctx.ids[1]);
+    expect(back.state.view.seat).toBe(1);
   });
 
-  it("reconnecting with the session token reclaims the seat and gets a snapshot", async () => {
+  it("someone idle for too long can be replaced, then take their seat back", async () => {
     const ctx = start(QUIET);
-    const welcome = ctx.conns[1]!.messages.find((m) => m.t === "welcome")!;
-    if (welcome.t !== "welcome") throw new Error();
-    ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
-
-    const fresh = new FakeConnection();
-    const id = ctx.room.join("P1 again", welcome.sessionToken, fresh);
-    expect(id).toBe(ctx.ids[1]);
-    expect(fresh.state.view.seat).toBe(1);
-    expect(fresh.lobby.members[1]).toMatchObject({ name: "P1 again", connected: true, seat: 1 });
-
-    // Back under human control: the autopilot no longer acts for seat 1.
-    ctx.conns[1] = fresh;
-    act(ctx, 0, { type: "discard", tile: fiveBamboo(ctx.conns[0]!) });
-    await sleep(30);
-    expect(fresh.state.view.phase).toEqual({ kind: "awaitDiscard", seat: 1 });
-    expect(fresh.state.legalActions.length).toBeGreaterThan(0);
+    await sleep(90);
+    expect(ctx.conns[1]!.lobby.seatInfo[0]!.issue).toBe("idle");
+    // The host is the idle one here, so hosting stays with them; they hand their own seat to a bot.
+    expect(ctx.room.replaceWithBot(ctx.ids[0]!, 0)).toBeNull();
+    expect(ctx.conns[1]!.lobby.seatInfo[0]!.reservedFor).toBe(ctx.ids[0]);
+    expect(ctx.room.takeSeat(ctx.ids[2]!, 0)?.code).toBe("notAllowed"); // they're seated already
+    expect(ctx.room.takeSeat(ctx.ids[0]!, 0)).toBeNull();
+    expect(ctx.conns[1]!.lobby.seats[0]).toBe(ctx.ids[0]);
   });
 
-  it("a stale connection closing doesn't disconnect the member's newer connection", () => {
+  it("leaving mid-hand empties the seat; the host can cancel the hand and the same dealer redeals", () => {
+    const ctx = start(NEXT_WINS);
+    expect(ctx.room.leaveSeat(ctx.ids[2]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby.seatInfo[2]!.issue).toBe("empty");
+    expect(ctx.room.cancelHand(ctx.ids[0]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby.phase).toBe("paused");
+    expect(ctx.room.resumeGame(ctx.ids[0]!)?.code).toBe("notEnoughPlayers");
+    ctx.room.takeSeat(ctx.ids[2]!, 2);
+    expect(ctx.room.resumeGame(ctx.ids[0]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby.game).toMatchObject({ dealer: 0, handNumber: 1, history: [] });
+    expect(ctx.conns[0]!.state.view.dealer).toBe(0);
+  });
+
+  it("a watcher can ask to play; when approved they replace a bot mid-hand", () => {
     const ctx = start(QUIET);
-    const welcome = ctx.conns[1]!.messages.find((m) => m.t === "welcome");
-    if (welcome?.t !== "welcome") throw new Error();
-    const fresh = new FakeConnection();
-    ctx.room.join("P1", welcome.sessionToken, fresh);
-    ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
-    expect(fresh.lobby.members[1]!.connected).toBe(true);
-  });
-
-  it("the autopilot finishes a claim if the player disconnects mid-claim", async () => {
-    const ctx = start(CHOW_VS_PUNG);
-    act(ctx, 0, { type: "discard", tile: fiveBamboo(ctx.conns[0]!) });
-    act(ctx, 2, { type: "claim" });
-    expect(ctx.conns[0]!.state.view.phase).toMatchObject({ kind: "claimed", seat: 2 });
-    ctx.room.disconnect(ctx.ids[2]!, ctx.conns[2]!);
-    await sleep(30);
-    expect(ctx.conns[0]!.state.view.players[2]!.melds).toHaveLength(1);
+    ctx.room.leaveSeat(ctx.ids[3]!);
+    ctx.room.replaceWithBot(ctx.ids[0]!, 3);
+    const zoe = new FakeConnection();
+    const zoeId = ctx.room.join("Zoe", undefined, zoe);
+    expect(ctx.room.requestSeat(zoeId)).toBeNull();
+    expect(ctx.conns[0]!.lobby.requests).toEqual([{ id: zoeId, name: "Zoe" }]);
+    expect(ctx.room.answerRequest(ctx.ids[1]!, zoeId, true)?.code).toBe("notHost");
+    expect(ctx.room.answerRequest(ctx.ids[0]!, zoeId, true)).toBeNull();
+    expect(zoe.lobby.seats[3]).toBe(zoeId);
+    expect(zoe.state.view.seat).toBe(3);
+    expect(zoe.lobby.requests).toEqual([]);
   });
 });
 
-describe("end of hand", () => {
-  it("reports the result, clears handInProgress, and allows a new hand", () => {
-    const ctx = start(["123c 456c 789c 123d 55d", ...QUIET.slice(1)]);
+describe("between hands", () => {
+  it("scores the hand, rotates the deal, and deals again once everyone is ready", () => {
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    const lobby = ctx.conns[0]!.lobby;
+    expect(lobby.phase).toBe("handOver");
+    expect(lobby.game).toMatchObject({ dealer: 1, scores: [-1, 1, 0, 0], handNumber: 2 });
+    expect(ctx.conns[0]!.state.view.phase.kind).toBe("handOver");
+    readyAll(ctx);
+    expect(ctx.conns[0]!.lobby.phase).toBe("hand");
+    expect(ctx.conns[0]!.state.view.dealer).toBe(1);
+  });
+
+  it("the dealer keeps the deal after winning", () => {
+    const ctx = start(DEALER_WINS);
     act(ctx, 0, { type: "selfDrawWin" });
-    expect(ctx.conns[2]!.state.view.phase).toMatchObject({ kind: "handOver", result: { winner: 0 } });
-    expect(ctx.conns[2]!.lobby.handInProgress).toBe(false);
-    expect(ctx.room.startHand(ctx.ids[2]!)).toBeNull();
-    expect(ctx.conns[2]!.state.view.phase.kind).toBe("awaitDiscard");
+    expect(ctx.conns[0]!.lobby.game).toMatchObject({ dealer: 0, scores: [3, -1, -1, -1] });
+  });
+
+  it("deals anyway when the countdown runs out, but not while someone is offline", async () => {
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    expect(ctx.conns[0]!.lobby.readyMsLeft).toBeGreaterThan(0);
+    ctx.room.disconnect(ctx.ids[3]!, ctx.conns[3]!);
+    expect(ctx.conns[0]!.lobby.readyMsLeft).toBeNull();
+    await sleep(100);
+    expect(ctx.conns[0]!.lobby.phase).toBe("handOver");
+    ctx.room.replaceWithBot(ctx.ids[0]!, 3);
+    expect(ctx.conns[0]!.lobby.readyMsLeft).toBeGreaterThan(0);
+    await sleep(100);
+    expect(ctx.conns[0]!.lobby.phase).toBe("hand");
+  });
+
+  it("anyone can pause in the lobby; a newcomer can take a bot's seat and its score", () => {
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
+    ctx.room.replaceWithBot(ctx.ids[0]!, 1);
+    expect(ctx.room.returnToLobby(ctx.ids[2]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby.phase).toBe("paused");
+
+    const zoe = new FakeConnection();
+    const zoeId = ctx.room.join("Zoe", undefined, zoe);
+    expect(ctx.room.takeSeat(zoeId, 1)).toBeNull();
+    expect(zoe.lobby.game!.scores[1]).toBe(1);
+    expect(ctx.room.resumeGame(ctx.ids[2]!)?.code).toBe("notHost");
+    expect(ctx.room.resumeGame(ctx.ids[0]!)).toBeNull();
+    expect(zoe.state.view.seat).toBe(1);
   });
 });
 
-describe("bots", () => {
-  it("fill the empty seats, give them up to people, and play whole hands", async () => {
-    const room = new Room("TEST", { claimWindowMs: 20, autopilotDelayMs: 5, botDelayMs: 1 });
-    const conn = new FakeConnection();
-    const id = room.join("Ann", undefined, conn);
-    room.takeSeat(id, 2);
-    expect(room.addBots(id)).toBeNull();
-    expect(conn.lobby.seats.every((s) => s !== null)).toBe(true);
-    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([0, 1, 3]);
+describe("wind breaks", () => {
+  /** Play a whole wind: the deal passes round the table once. */
+  function playWind(ctx: Ctx) {
+    for (const dealer of [0, 1, 2, 3] as Seat[]) {
+      nextSeatWins(ctx, dealer);
+      if (dealer < 3) readyAll(ctx);
+    }
+  }
 
-    // Taking a bot's seat replaces the bot.
-    expect(room.takeSeat(id, 0)).toBeNull();
-    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([1, 3]);
-    expect(conn.lobby.seats[2]).toBeNull();
-    room.addBots(id);
+  it("ends each wind with a vote; continuing needs everyone", () => {
+    const ctx = start(NEXT_WINS);
+    playWind(ctx);
+    const lobby = ctx.conns[0]!.lobby;
+    expect(lobby.phase).toBe("windBreak");
+    expect(lobby.game).toMatchObject({ prevailingWind: 1, windNumber: 2, dealer: 0, scores: [0, 0, 0, 0] });
+    for (const id of ctx.ids.slice(0, 3)) ctx.room.voteContinue(id);
+    expect(ctx.conns[0]!.lobby.phase).toBe("windBreak");
+    ctx.room.voteContinue(ctx.ids[3]!);
+    expect(ctx.conns[0]!.lobby.phase).toBe("hand");
+    expect(ctx.conns[0]!.state.view.prevailingWind).toBe(1);
+  });
 
-    // Ann discards whatever she's offered and never claims; the bots play everything else.
-    conn.send = (m) => {
-      conn.messages.push(m);
-      if (m.t !== "state" || m.legalActions.length === 0) return;
-      const action = m.legalActions.find((a) => a.type === "pass" || a.type === "discard") ?? m.legalActions[0]!;
-      setTimeout(() => room.act(id, action, m.stateVersion));
-    };
-    expect(room.startHand(id)).toBeNull();
-    while (room.handInProgress) await sleep(10);
-    expect(conn.state.view.phase.kind).toBe("handOver");
-    room.dispose();
-  }, 10_000);
+  it("leavers are replaced by bots; non-voters can be removed after a while; nobody left ends the game", async () => {
+    const ctx = start(NEXT_WINS);
+    playWind(ctx);
+    ctx.room.leaveSeat(ctx.ids[1]!);
+    expect(ctx.conns[0]!.lobby.members.find((m) => m.seat === 1)!.bot).toBe(true);
+    ctx.room.voteContinue(ctx.ids[0]!);
+    expect(ctx.room.removeMember(ctx.ids[0]!, ctx.ids[2]!)?.code).toBe("notAllowed"); // too soon
+    await sleep(50);
+    expect(ctx.room.removeMember(ctx.ids[0]!, ctx.ids[2]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby.phase).toBe("windBreak"); // still waiting for seat 3
+    ctx.room.leaveSeat(ctx.ids[3]!);
+    expect(ctx.conns[0]!.lobby.phase).toBe("hand"); // everyone still seated has voted
+  });
 
-  it("can't be added during a hand", () => {
-    const ctx = start(QUIET);
-    expect(ctx.room.addBots(ctx.ids[0]!)?.code).toBe("handInProgress");
+  it("the game is over when every person leaves, and the host can start afresh", () => {
+    const ctx = start(NEXT_WINS);
+    playWind(ctx);
+    for (const id of ctx.ids) ctx.room.leaveSeat(id);
+    expect(ctx.conns[0]!.lobby.phase).toBe("gameOver");
+    expect(ctx.room.newGame(ctx.ids[0]!)).toBeNull();
+    expect(ctx.conns[0]!.lobby).toMatchObject({ phase: "lobby", game: null });
   });
 });

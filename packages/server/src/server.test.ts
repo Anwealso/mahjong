@@ -48,7 +48,7 @@ class Client {
 
 let server: RunningServer;
 beforeEach(async () => {
-  server = await startServer({ port: 0, room: { claimWindowMs: 30, autopilotDelayMs: 5 } });
+  server = await startServer({ port: 0, room: { claimWindowMs: 30, botDelayMs: 5, readyMs: 50, idleMs: 60_000, voteRemoveMs: 30_000 } });
 });
 afterEach(async () => {
   await server.close();
@@ -88,35 +88,40 @@ describe("server", () => {
     c.close();
   });
 
-  it("four random players play several full hands over real sockets", async () => {
+  it("four random players play several full hands over real sockets, readying up between them", async () => {
     const clients = await fullTable();
-    const HANDS = 5;
+    const HANDS = 6;
     const results: unknown[] = [];
     const unexpectedErrors: ServerMessage[] = [];
     let done: () => void;
     const finished = new Promise<void>((r) => (done = r));
 
-    for (const [seat, c] of clients.entries()) {
+    for (const c of clients) {
+      const answered = new Set<string>();
       c.onMessage = (m) => {
         // Stale actions are expected (someone else claimed first); anything else is a bug.
         if (m.t === "error" && m.code !== "staleState") unexpectedErrors.push(m);
-        if (m.t !== "state") return;
-        if (m.view.phase.kind === "handOver") {
-          if (seat === 0) {
-            results.push(m.view.phase.result);
+        if (m.t === "lobby") {
+          if (c === clients[0] && m.game && m.game.history.length > results.length) {
+            results.push(m.game.history.at(-1)!.result);
             if (results.length === HANDS) done();
-            else c.send({ t: "startHand" });
           }
+          // Answer each ready-up and vote once (lobby updates repeat while others answer).
+          const key = `${m.phase}:${m.game?.handNumber}`;
+          if (answered.has(key)) return;
+          answered.add(key);
+          if (m.phase === "handOver") c.send({ t: "ready" });
+          if (m.phase === "windBreak") c.send({ t: "voteContinue" });
           return;
         }
-        if (m.legalActions.length === 0) return;
+        if (m.t !== "state" || m.legalActions.length === 0) return;
         // Random but sometimes slow, so claim timers expire too. Take wins when offered.
         const win = m.legalActions.find((a) => a.type === "win" || a.type === "selfDrawWin");
         const action: Action = win ?? m.legalActions[Math.floor(Math.random() * m.legalActions.length)]!;
         setTimeout(() => c.send({ t: "action", action, stateVersion: m.stateVersion }), Math.random() < 0.1 ? 40 : 0);
       };
     }
-    clients[0]!.send({ t: "startHand" });
+    clients[0]!.send({ t: "startGame" });
     await finished;
 
     expect(results).toHaveLength(HANDS);

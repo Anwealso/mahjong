@@ -17,9 +17,11 @@ export interface Session {
 export type GameSnapshot = Omit<StateMessage, "t"> & { receivedAt: number };
 
 export interface Notice {
-  code: ErrorCode;
+  code: ErrorCode | "serverRestarting";
   message: string;
   at: number;
+  /** How long to show it (default 3 s). */
+  ms?: number;
 }
 
 interface Store {
@@ -111,11 +113,25 @@ export const useStore = create<Store>()((set, get) => {
         }));
         return;
       }
+      case "serverRestarting":
+        set({ notice: { code: "serverRestarting", message: "The server is restarting…", at: Date.now(), ms: 10_000 } });
+        return;
       case "error":
-        // A saved room that no longer exists (e.g. the server restarted): forget it.
+        // A saved room that no longer exists: the server restarted (or the room was cleaned up). Forget it.
         if (m.code === "noSuchRoom" && get().session) {
           saveSession(null);
-          set({ session: null, lobby: null, game: null });
+          set({
+            session: null,
+            lobby: null,
+            game: null,
+            notice: {
+              code: m.code,
+              message: "The server restarted, so that room and any game in it are gone. Start a new room to keep playing.",
+              at: Date.now(),
+              ms: 12_000,
+            },
+          });
+          return;
         }
         set({ notice: { code: m.code, message: friendlyError(m.code, m.message), at: Date.now() } });
         return;

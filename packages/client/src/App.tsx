@@ -14,7 +14,7 @@ export function App() {
 
   useEffect(() => {
     if (!notice) return;
-    const timer = setTimeout(dismissNotice, 3000);
+    const timer = setTimeout(dismissNotice, notice.ms ?? 3000);
     return () => clearTimeout(timer);
   }, [notice, dismissNotice]);
 

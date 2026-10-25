@@ -103,7 +103,7 @@ objects in a `Map`.
 
 ## D8. Hosting: one service serving the client and the WebSocket on the same origin
 
-**Status:** proposed · 2026-10-25 (decided at milestone 6)
+**Status:** accepted · 2026-10-25 · Fly.io chosen in [D25](#d25-flyio-in-sydney-one-machine-that-stops-when-idle-deploys-from-github-actions)
 
 Fly.io or Railway, about $0–5/month. Same origin means no CORS, and the client always connects to `/ws`.
 In development, Vite proxies `/ws` to the server on `:8787`.
@@ -350,3 +350,29 @@ hand, the dealer never moves, and winds never end. Fixed-length winds also make 
 predictable (every four hands).
 
 **Considered:** keeping the deal only after a dealer win (not a draw); capping consecutive dealer repeats.
+
+## D25. Fly.io in Sydney, one machine that stops when idle, deploys from GitHub Actions
+
+**Status:** accepted · 2026-10-25 · setup steps in [deploy.md](deploy.md)
+
+- **Fly.io**, region **`syd`** (the players are in Australia; low latency matters for first-come claims).
+  `shared-cpu-1x`, 256 MB: about $1.94/month running all the time, less because it stops when idle.
+- **Exactly one machine.** Rooms live in memory, so a second machine would split players between two
+  servers. Deploys use `--ha=false`.
+- **Stops when nobody is connected** (`auto_stop_machines`), starts on the next request in about 1–3 s.
+  Open WebSockets count as connections, so it never stops mid-game.
+- **A deploy or restart ends games in progress.** Before shutting down the server tells everyone it's
+  restarting; on reconnect their room is gone and they're told so. Saving rooms across restarts is left
+  for game history / replays (milestone 7).
+- **GitHub Actions** deploys every push to `main` after typecheck and tests pass; pull requests run the
+  tests only.
+- The free `*.fly.dev` address; no custom domain yet. The site is open: anyone with the URL can create a
+  room.
+- **Resilience:** the server pings every socket every 25 s and drops ones that don't answer (so a dropped
+  Wi-Fi shows as offline promptly and the host gets the prompt). Rooms nobody has been connected to for
+  30 minutes are deleted; disconnected watchers are dropped after 10 minutes. Limits: 100 rooms per
+  server, 12 people per room, 5 new rooms per minute per connection.
+
+**Considered:** Railway ($5/month base, simpler deploys, less control over region); always-on (costs more
+for no benefit to a group that plays in sessions); saving rooms to a volume so deploys don't end games
+(more work, deferred); deploying by hand.

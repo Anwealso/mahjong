@@ -14,6 +14,8 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 | Idle player (no move when it's their decision) | 60 s, then the host may replace them |
 | Wind-break vote | no time limit; after 30 s the host may remove someone who hasn't voted |
 | Bot thinking time | 1.5 s |
+| Room with nobody connected | deleted after 30 min |
+| Disconnected watcher (not seated) | dropped from the room after 10 min |
 
 ## The host
 
@@ -132,6 +134,14 @@ automatically when the 5 s run out, as anyone does.
   even if a bot took over.
 - A person replaced for being **idle** can click **Take my seat back** at any time.
 - A person who chose to **leave** has given up the seat; they can ask to play like a newcomer.
+
+## Server restarts and limits
+
+- A deploy or restart of the server ends every game in progress (rooms live in memory). Players see "The
+  server is restarting", and when they reconnect they're told the room is gone and go back to the join
+  screen.
+- Limits: at most 100 rooms on the server, 12 people per room (players and watchers; bots don't count), and
+  5 new rooms per minute from one browser connection.
 
 ## Joining part-way through a game
 

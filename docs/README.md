@@ -11,6 +11,7 @@ over a voice call. Desktop only for now.
 | [decisions.md](decisions.md) | Decision log: what was chosen, what was considered, and why |
 | [roadmap.md](roadmap.md) | Milestones, current status, open questions |
 | [development.md](development.md) | Setup, commands, repo layout, coding conventions |
+| [deploy.md](deploy.md) | Fly.io setup (one-time steps), deploying, logs, running a production build |
 
 ## The project in 30 seconds
 

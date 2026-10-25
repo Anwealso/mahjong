@@ -59,7 +59,7 @@ packages/
     table/            Table (layout, ponds, centre, action bar), HandOver, HostPrompts, MyHand, Melds, useTableControls
     hand/             arrangement.ts (order + private groups), claimOptions.ts (ways to use a claimed tile)
     sound/            cues.ts (events → sounds), player.ts (Web Audio, synthesised sounds, volume/mute)
-    SettingsMenu.tsx  gear button (top right) with personal settings: the sound slider
+    SettingsMenu.tsx  gear button (top left) with personal settings: the sound slider
     Tile.tsx          the only component that draws a tile
   client/public/sounds/  recorded clips (.m4a) and CREDITS.md
 package.json          npm workspaces + root scripts

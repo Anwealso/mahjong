@@ -321,7 +321,7 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
 - **Sound** (`sound/`, details in [sound.md](sound.md)): when a `state` message arrives, the store passes
   its `events` to `soundsFor` (pure, unit tested), which picks the sounds; `player.ts` plays them with Web
   Audio. Recorded clips are in `public/sounds/`; alerts and fanfares are synthesised. The celebration
-  screen and host prompts play their own sounds. Mute and volume live in the settings menu (gear, top right, `SettingsMenu.tsx`); `M` mutes anywhere.
+  screen and host prompts play their own sounds. Mute and volume live in the settings menu (gear, top left, `SettingsMenu.tsx`); `M` mutes anywhere.
 - **Tiles**: `Tile.tsx` draws every tile (CSS boxes with labels for now, in three sizes), so an SVG tile
   set can replace it in one place.
 

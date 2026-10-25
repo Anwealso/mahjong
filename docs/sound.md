@@ -57,9 +57,9 @@ worth more than the small leak.
 
 ## Controls
 
-- A **settings menu** behind a gear button in the top-right corner holds a **Sound** slider (with the
+- A **settings menu** behind a gear button in the top-left corner holds a **Sound** slider (with the
   percentage, or "Off" when muted; moving it unmutes). It closes on `Esc` or a click elsewhere; `Esc` there doesn't also pass on
-  a claim. On the table, Leave table sits just left of the gear. Future personal settings go in the same
+  a claim. Future personal settings go in the same
   menu.
 - `M` toggles mute (ignored while typing in a text field).
 - Sound is **on by default at about 60%**. The setting is saved in `localStorage`, so each person sets it

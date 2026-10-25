@@ -11,6 +11,8 @@ beforeAll(async () => {
   mkdirSync(join(root, "assets"));
   writeFileSync(join(root, "index.html"), "<html>app</html>");
   writeFileSync(join(root, "assets", "app-abc123.js"), "console.log(1)");
+  mkdirSync(join(root, "sounds"));
+  writeFileSync(join(root, "sounds", "gong.m4a"), "audio");
   server = await startServer({ port: 0, staticDir: root });
 });
 afterAll(() => server.close());
@@ -36,6 +38,10 @@ describe("serving the built client", () => {
     const asset = await get("/assets/app-abc123.js");
     expect(asset.headers["content-type"]).toContain("text/javascript");
     expect(asset.headers["cache-control"]).toContain("immutable");
+  });
+
+  it("serves sound clips as audio", async () => {
+    expect((await get("/sounds/gong.m4a")).headers["content-type"]).toBe("audio/mp4");
   });
 
   it("falls back to index.html for app links, but 404s missing files", async () => {

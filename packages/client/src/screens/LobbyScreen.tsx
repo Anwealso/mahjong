@@ -1,7 +1,7 @@
-import { SEATS } from "@mahjong/engine";
+import { SEATS, seatWind } from "@mahjong/engine";
 import { useRoom } from "../net/room";
 import { useStore } from "../net/store";
-import { Scoreboard, WIND_GLYPHS } from "./Scoreboard";
+import { Scoreboard, WIND_GLYPHS, WIND_NAMES } from "./Scoreboard";
 
 /**
  * The room outside the table: before a game (take seats, bots, start), while a game is paused (scores,
@@ -69,9 +69,13 @@ export function LobbyScreen() {
           // Before a game you can move freely; while paused, watchers can fill a seat or replace a bot.
           const free = !m || m.bot;
           const canTake = free && (phase === "lobby" || (phase === "paused" && mySeat === null));
+          // During a game seat winds follow the dealer; before one, name the seats in turn order.
+          const wind = game ? seatWind(seat, game.dealer) : seat;
           return (
             <div key={seat} className={`seat-card${isMine ? " mine" : ""}`}>
-              <div className="muted">Seat {seat + 1}</div>
+              <div className="muted">
+                Seat {seat + 1} · {WIND_GLYPHS[wind]} {WIND_NAMES[wind]}
+              </div>
               <div className="seat-name">
                 {m?.id === lobby.hostId && <span title="Host">👑</span>}
                 {m ? m.name : "Empty"}

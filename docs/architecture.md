@@ -183,7 +183,8 @@ payment from [rules.md](rules.md). It's isolated so faan scoring can replace it 
 Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (rooms by code),
 `room.ts` (one table), `controllers.ts` (who plays each seat).
 
-- **Room**: a 4-letter code, members, a **host**, 4 seats, the **game** (engine `GameState`: dealer,
+- **Room**: a 4-letter code, members, a **host**, 4 seats, the **game settings** (`GameSettings`, set by
+  the host before a game and copied into it), the **game** (engine `GameState`: dealer,
   prevailing wind, running seat scores, hand history), the current `HandState`, a `stateVersion`, timers,
   and a controller per seat. Every change goes through the room one message at a time, which is what makes
   claims first come, first served.
@@ -242,6 +243,7 @@ Client → server (all validated):
 // host only:
 { t: "addBots" } | { t: "removeMember", memberId } | { t: "replaceWithBot", seat } | { t: "cancelHand" }
 { t: "answerRequest", memberId, approve } | { t: "startGame" } | { t: "resumeGame" } | { t: "newGame" }
+{ t: "updateSettings", settings: Partial<GameSettings> }   // before a game only
 ```
 
 Server → client:
@@ -249,7 +251,7 @@ Server → client:
 ```ts
 { t: "welcome", room, memberId, sessionToken }
 { t: "lobby", room, hostId, phase, members: { id, name, seat, connected, bot }[], seats,
-  seatInfo: { issue, reservedFor, ready, voted }[], game: GameState | null,
+  seatInfo: { issue, reservedFor, ready, voted }[], settings: GameSettings, game: GameState | null,
   readyMsLeft, voteRemoveMsLeft, requests: { id, name }[] }
 { t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
 { t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |

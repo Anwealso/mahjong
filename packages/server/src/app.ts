@@ -61,10 +61,30 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
           return fail(room.takeSeat(memberId, message.seat));
         case "leaveSeat":
           return fail(room.leaveSeat(memberId));
+        case "requestSeat":
+          return fail(room.requestSeat(memberId));
+        case "ready":
+          return fail(room.setReady(memberId));
+        case "returnToLobby":
+          return fail(room.returnToLobby(memberId));
+        case "voteContinue":
+          return fail(room.voteContinue(memberId));
         case "addBots":
           return fail(room.addBots(memberId));
-        case "startHand":
-          return fail(room.startHand(memberId));
+        case "removeMember":
+          return fail(room.removeMember(memberId, message.memberId));
+        case "replaceWithBot":
+          return fail(room.replaceWithBot(memberId, message.seat));
+        case "cancelHand":
+          return fail(room.cancelHand(memberId));
+        case "answerRequest":
+          return fail(room.answerRequest(memberId, message.memberId, message.approve));
+        case "startGame":
+          return fail(room.startGame(memberId));
+        case "resumeGame":
+          return fail(room.resumeGame(memberId));
+        case "newGame":
+          return fail(room.newGame(memberId));
         case "action":
           return fail(room.act(memberId, message.action, message.stateVersion));
       }

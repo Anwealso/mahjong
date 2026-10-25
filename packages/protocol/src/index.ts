@@ -1,4 +1,4 @@
-import type { Action, GameEvent, PlayerView, Seat } from "@mahjong/engine";
+import type { Action, GameEvent, GameState, PlayerView, Seat } from "@mahjong/engine";
 import { z } from "zod";
 
 /**
@@ -42,16 +42,39 @@ void actionSchemaMatchesEngine;
 // ---- client → server -------------------------------------------------------------------------------
 
 export const clientMessageSchema = z.discriminatedUnion("t", [
-  /** Create a new room and join it. */
+  /** Create a new room and join it (as its host). */
   z.object({ t: z.literal("createRoom"), name: playerNameSchema }),
   /** Join a room. With a `sessionToken` from an earlier `welcome`, reclaim that identity (and seat). */
   z.object({ t: z.literal("join"), room: roomCodeSchema, name: playerNameSchema, sessionToken: z.string().max(100).optional() }),
+  /**
+   * Before a game: any free seat (or a bot's). During a game: a bot's seat while paused or at a wind
+   * break, or your own seat back from the bot keeping it for you.
+   */
   z.object({ t: z.literal("takeSeat"), seat: seatSchema }),
+  /** Give up your seat. At a wind break a bot takes it over; otherwise it's left empty for the host. */
   z.object({ t: z.literal("leaveSeat") }),
-  /** Fill every empty seat with a random-move bot. A person taking a bot's seat replaces it. */
+  /** Watcher, during a game: ask the host to let you play. */
+  z.object({ t: z.literal("requestSeat") }),
+  /** Between hands. */
+  z.object({ t: z.literal("ready") }),
+  /** Between hands: pause the game in the lobby. */
+  z.object({ t: z.literal("returnToLobby") }),
+  /** At a wind break: vote to play the next wind. */
+  z.object({ t: z.literal("voteContinue") }),
+  // Host only:
+  /** Fill every empty seat with a random-move bot (before a game, or while paused). */
   z.object({ t: z.literal("addBots") }),
-  /** Deal a new hand. Needs all four seats filled and no hand in progress. */
-  z.object({ t: z.literal("startHand") }),
+  z.object({ t: z.literal("removeMember"), memberId: z.string().max(20) }),
+  /** Hand an empty, offline, or idle seat to a bot (during a hand or between hands). */
+  z.object({ t: z.literal("replaceWithBot"), seat: seatSchema }),
+  /** Throw away the hand being played and pause in the lobby. */
+  z.object({ t: z.literal("cancelHand") }),
+  z.object({ t: z.literal("answerRequest"), memberId: z.string().max(20), approve: z.boolean() }),
+  /** Needs all four seats filled. The first dealer is random. */
+  z.object({ t: z.literal("startGame") }),
+  z.object({ t: z.literal("resumeGame") }),
+  /** After the game is over: back to the lobby with scores reset. */
+  z.object({ t: z.literal("newGame") }),
   /** `stateVersion` is the version of the state the player was looking at when they acted. */
   z.object({ t: z.literal("action"), action: actionSchema, stateVersion: z.number().int().min(0) }),
 ]);
@@ -68,11 +91,49 @@ export interface MemberInfo {
   bot: boolean;
 }
 
+/**
+ * Where the room is (see docs/game-flow.md): `lobby` (no game), `hand` (playing), `handOver` (ready-up
+ * between hands), `paused` (game held in the lobby), `windBreak` (end-of-wind vote), `gameOver`.
+ */
+export type RoomPhase = "lobby" | "hand" | "handOver" | "paused" | "windBreak" | "gameOver";
+
+/** Why a seat isn't being played during a game. The host is prompted to deal with it. */
+export type SeatIssue = "empty" | "offline" | "idle";
+
+export interface SeatInfo {
+  issue: SeatIssue | null;
+  /** A bot is keeping this seat for this member, who can take it back. */
+  reservedFor: string | null;
+  /** Between hands: ready for the next (bots always are). */
+  ready: boolean;
+  /** At a wind break: voted to continue. */
+  voted: boolean;
+}
+
+/** Sent to everyone in the room whenever anything outside the hand itself changes. */
+export interface LobbyMessage {
+  t: "lobby";
+  room: string;
+  hostId: string | null;
+  phase: RoomPhase;
+  members: MemberInfo[];
+  /** Member id in each seat. */
+  seats: (string | null)[];
+  seatInfo: SeatInfo[];
+  /** Dealer, wind, running scores per seat, and every finished hand. Null before a game starts. */
+  game: GameState | null;
+  /** Between hands: time left before the next hand is dealt anyway. Null while the countdown is stopped. */
+  readyMsLeft: number | null;
+  /** At a wind break: time until the host may remove people who haven't voted (0 = now). */
+  voteRemoveMsLeft: number | null;
+  /** Watchers asking to play, oldest first. */
+  requests: { id: string; name: string }[];
+}
+
 export type ServerMessage =
   /** Sent once after createRoom/join. Store `sessionToken` to reconnect as the same member. */
   | { t: "welcome"; room: string; memberId: string; sessionToken: string }
-  /** Sent to everyone in the room whenever membership, seats, or connection status change. */
-  | { t: "lobby"; room: string; members: MemberInfo[]; seats: (string | null)[]; handInProgress: boolean }
+  | LobbyMessage
   /**
    * Sent to each seated player after every change to the hand. A full snapshot: the client replaces
    * whatever it had. Echo `stateVersion` back with your next action.
@@ -98,7 +159,9 @@ export type ErrorCode =
   | "notEnoughPlayers"
   | "notSeated"
   | "staleState"
-  | "illegalAction";
+  | "illegalAction"
+  | "notHost"
+  | "notAllowed";
 
 /** Parse an incoming raw WebSocket message. */
 export function parseClientMessage(raw: string): ClientMessage | null {

@@ -16,8 +16,8 @@ export interface SeatUpdate {
 }
 
 /**
- * Drives one seat. The room never talks to sockets directly: humans, the disconnect autopilot, and future
- * bots are all controllers, and swapping who plays a seat means swapping its controller.
+ * Drives one seat. The room never talks to sockets directly: humans and bots are both controllers, and
+ * swapping who plays a seat means swapping its controller.
  */
 export interface SeatController {
   update(update: SeatUpdate): void;
@@ -40,7 +40,7 @@ export type Policy = (view: PlayerView, legalActions: Action[]) => Action;
 
 /**
  * Plays a seat in-process with a policy, after a short delay so it feels natural and never re-enters
- * the room synchronously. This is the base for the autopilot and for future bots.
+ * the room synchronously. Bots are policies.
  */
 export class PolicyController implements SeatController {
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -66,19 +66,7 @@ export class PolicyController implements SeatController {
   }
 }
 
-/**
- * For a disconnected player: never claim, and discard the tile just drawn (or the last tile in hand). If
- * they disconnected right after claiming a tile, finish the claim (winning if possible).
- */
-export const autopilotPolicy: Policy = (view, legalActions) => {
-  const pass = legalActions.find((a) => a.type === "pass");
-  if (pass) return pass;
-  if (view.phase.kind === "claimed") return legalActions.find((a) => a.type === "win") ?? legalActions[0]!;
-  const tile = view.lastDrawn ?? view.hand[view.hand.length - 1]!;
-  return legalActions.find((a) => a.type === "discard" && a.tile === tile) ?? legalActions[0]!;
-};
-
-/** Random legal moves, taking wins when offered. Used by tests and handy for filling seats in development. */
+/** Random legal moves, taking wins when offered. The lobby's bots play this. */
 export function randomPolicy(random: () => number = Math.random): Policy {
   return (_view, legalActions) => {
     const win = legalActions.find((a) => a.type === "win" || a.type === "selfDrawWin");

@@ -291,9 +291,8 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   watchers during a game) → **Table** (seated, during `hand`/`handOver`) → **Wind break** (after the last
   hand's result) → **Celebration** (game over, or after leaving at a wind break). `net/room.ts` derives
   "me / my seat / am I host / names" from the lobby message.
-- **Lobby layout**: the main column (room code, seats, buttons) stays centred; side panels (for now just
-  Game settings) sit in a second column just to its right (`.lobby-aside`), and drop below it on screens
-  too narrow for both.
+- **Lobby layout**: one centred column: room code, seats, buttons, then the Game settings card at the
+  bottom.
 - **Table extras for milestone 5**: running seat scores next to names, "Round N · 東", the end-of-hand
   panel (payments, totals, ready marks, countdown, Ready / Return to lobby), host prompts for seat issues
   and join requests (`table/HostPrompts.tsx`), and a Leave table button.

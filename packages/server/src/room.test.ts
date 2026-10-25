@@ -197,3 +197,38 @@ describe("end of hand", () => {
     expect(ctx.conns[2]!.state.view.phase.kind).toBe("awaitDiscard");
   });
 });
+
+describe("bots", () => {
+  it("fill the empty seats, give them up to people, and play whole hands", async () => {
+    const room = new Room("TEST", { claimWindowMs: 20, autopilotDelayMs: 5, botDelayMs: 1 });
+    const conn = new FakeConnection();
+    const id = room.join("Ann", undefined, conn);
+    room.takeSeat(id, 2);
+    expect(room.addBots(id)).toBeNull();
+    expect(conn.lobby.seats.every((s) => s !== null)).toBe(true);
+    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([0, 1, 3]);
+
+    // Taking a bot's seat replaces the bot.
+    expect(room.takeSeat(id, 0)).toBeNull();
+    expect(conn.lobby.members.filter((m) => m.bot).map((m) => m.seat)).toEqual([1, 3]);
+    expect(conn.lobby.seats[2]).toBeNull();
+    room.addBots(id);
+
+    // Ann discards whatever she's offered and never claims; the bots play everything else.
+    conn.send = (m) => {
+      conn.messages.push(m);
+      if (m.t !== "state" || m.legalActions.length === 0) return;
+      const action = m.legalActions.find((a) => a.type === "pass" || a.type === "discard") ?? m.legalActions[0]!;
+      setTimeout(() => room.act(id, action, m.stateVersion));
+    };
+    expect(room.startHand(id)).toBeNull();
+    while (room.handInProgress) await sleep(10);
+    expect(conn.state.view.phase.kind).toBe("handOver");
+    room.dispose();
+  }, 10_000);
+
+  it("can't be added during a hand", () => {
+    const ctx = start(QUIET);
+    expect(ctx.room.addBots(ctx.ids[0]!)?.code).toBe("handInProgress");
+  });
+});

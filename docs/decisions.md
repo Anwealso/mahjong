@@ -376,3 +376,23 @@ predictable (every four hands).
 **Considered:** Railway ($5/month base, simpler deploys, less control over region); always-on (costs more
 for no benefit to a group that plays in sessions); saving rooms to a volume so deploys don't end games
 (more work, deferred); deploying by hand.
+
+## D26. Sound effects: recorded CC0 clips played from game events; lobby music to be chosen
+
+**Status:** accepted (sound effects) · lobby music open · 2026-10-25 · details in [sound.md](sound.md)
+
+- **Tile sounds are recorded CC0 clips** from Kenney's *Casino Audio* pack. Alerts are soft tones
+  synthesised in the browser. Plain Web Audio, no audio library.
+- **The client maps the `events` in each `state` message to sounds**, so the server doesn't change. The
+  mapping is a pure, unit-tested function.
+- **A small set of sounds:** deal, discards (everyone's), your own draw, your turn, a claim ping when *you*
+  can claim, pung/chow and kong clacks, win fanfare, draw-hand thud, and a gong plus cheer on the
+  celebration screen. The host hears a soft notification for host prompts.
+- **Silent on purpose:** other players' draws, countdown ticks, and lobby join/leave.
+- **No music during a hand** (you're on a voice call). Lobby music is being chosen; the options are in
+  [sound.md](sound.md#lobby-music).
+- **Controls:** mute button, volume slider and `M`. On by default at about 60%, saved per browser.
+- **Accepted trade-off:** through an open mic, the claim ping can tell friends you had a claim.
+
+**Considered:** synthesising every sound (no files, but tile clacks sound plasticky); countdown ticks;
+sounds for other players' draws; making the claim alert visual only.

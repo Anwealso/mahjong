@@ -3,3 +3,8 @@ export * from "./rng";
 export * from "./wall";
 export * from "./rules";
 export * from "./win";
+export * from "./types";
+export * from "./scoring";
+export * from "./hand";
+export * from "./view";
+export * from "./testing";

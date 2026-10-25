@@ -64,6 +64,18 @@ kbd {
   border-radius: 8px;
   z-index: 100;
 }
+.sound-controls {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 90;
+}
+.sound-controls button { padding: 4px 8px; }
+.sound-controls input { width: 80px; accent-color: var(--gold); opacity: 0.6; }
+.sound-controls:hover input { opacity: 1; }
 .connection { top: 12px; background: #8a5a00; }
 .notice { top: 12px; background: #7a1f1f; cursor: pointer; }
 

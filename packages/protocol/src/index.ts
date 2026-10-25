@@ -152,7 +152,9 @@ export type ServerMessage =
       /** Milliseconds left in the claim window, or null when there's no window. */
       claimMsLeft: number | null;
     }
-  | { t: "error"; code: ErrorCode; message: string };
+  | { t: "error"; code: ErrorCode; message: string }
+  /** The server is about to restart (e.g. a deploy). Games in progress will be lost. */
+  | { t: "serverRestarting" };
 
 export type ErrorCode =
   | "badMessage"
@@ -165,7 +167,10 @@ export type ErrorCode =
   | "staleState"
   | "illegalAction"
   | "notHost"
-  | "notAllowed";
+  | "notAllowed"
+  | "serverFull"
+  | "roomFull"
+  | "rateLimited";
 
 /** Parse an incoming raw WebSocket message. */
 export function parseClientMessage(raw: string): ClientMessage | null {

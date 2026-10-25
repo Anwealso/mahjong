@@ -111,6 +111,20 @@ describe("lobby", () => {
     expect(conns[2]!.lobby.hostId).toBe(ids[1]);
   });
 
+  it("drops disconnected watchers after a while, but not seated players", () => {
+    const { room, conns, ids } = setup(undefined, { watcherTimeoutMs: 1000 });
+    const zoe = new FakeConnection();
+    const zoeId = room.join("Zoe", undefined, zoe);
+    room.disconnect(zoeId, zoe);
+    room.disconnect(ids[3]!, conns[3]!);
+    room.sweepMembers(Date.now() + 500);
+    expect(conns[0]!.lobby.members.map((m) => m.name)).toContain("Zoe");
+    room.sweepMembers(Date.now() + 2000);
+    const names = conns[0]!.lobby.members.map((m) => m.name);
+    expect(names).not.toContain("Zoe");
+    expect(names).toContain("P3");
+  });
+
   it("the host can remove someone from their seat", () => {
     const { room, conns, ids } = setup();
     expect(room.removeMember(ids[1]!, ids[2]!)?.code).toBe("notHost");

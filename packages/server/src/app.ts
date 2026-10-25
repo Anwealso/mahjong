@@ -10,17 +10,29 @@ export interface ServerOptions {
   /** 0 picks a free port (tests). */
   port: number;
   room?: RoomOptions;
+  /** How often to ping each socket; one that hasn't answered the previous ping is dropped. */
+  pingMs?: number;
+  maxRooms?: number;
+  /** New rooms one connection may create per minute. */
+  roomsPerMinute?: number;
 }
 
 export interface RunningServer {
   port: number;
   registry: RoomRegistry;
+  /** Warn everyone the server is restarting, then shut down. */
   close(): Promise<void>;
 }
 
 /** HTTP + WebSocket server. Each socket joins at most one room at a time. */
-export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerOptions): Promise<RunningServer> {
-  const registry = new RoomRegistry(room);
+export async function startServer({
+  port,
+  room = DEFAULT_ROOM_OPTIONS,
+  pingMs = 25_000,
+  maxRooms = 100,
+  roomsPerMinute = 5,
+}: ServerOptions): Promise<RunningServer> {
+  const registry = new RoomRegistry(room, undefined, maxRooms);
 
   const http = createServer((req, res) => {
     if (req.url === "/health") {
@@ -32,7 +44,25 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
   });
 
   const wss = new WebSocketServer({ server: http, path: "/ws", maxPayload: 16 * 1024 });
+  // Sockets that answered the last ping. A dropped Wi-Fi often leaves a socket open on our side for minutes;
+  // this notices within two pings, so the player shows as offline and the host is prompted.
+  const alive = new WeakSet<WebSocket>();
+  const heartbeat = setInterval(() => {
+    for (const socket of wss.clients) {
+      if (!alive.has(socket)) {
+        socket.terminate();
+        continue;
+      }
+      alive.delete(socket);
+      socket.ping();
+    }
+  }, pingMs);
+  heartbeat.unref();
+
   wss.on("connection", (socket) => {
+    alive.add(socket);
+    socket.on("pong", () => alive.add(socket));
+    const created: number[] = [];
     const connection: Connection = {
       send(message: ServerMessage) {
         if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(message));
@@ -46,8 +76,19 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
       if (!message) return fail({ code: "badMessage", message: "Unrecognised message" });
 
       if (message.t === "createRoom" || message.t === "join") {
-        const target = message.t === "createRoom" ? registry.create() : registry.get(message.room);
-        if (!target) return fail({ code: "noSuchRoom", message: `No room ${message.t === "join" ? message.room : ""}` });
+        let target: Room | null | undefined;
+        if (message.t === "createRoom") {
+          const now = Date.now();
+          while (created.length && now - created[0]! > 60_000) created.shift();
+          if (created.length >= roomsPerMinute) return fail({ code: "rateLimited", message: "Too many new rooms; wait a minute" });
+          target = registry.create();
+          if (!target) return fail({ code: "serverFull", message: "The server is full right now" });
+          created.push(now);
+        } else {
+          target = registry.get(message.room);
+          if (!target) return fail({ code: "noSuchRoom", message: `No room ${message.room}` });
+          if (!target.canJoin(message.sessionToken)) return fail({ code: "roomFull", message: "That room is full" });
+        }
         if (session) session.room.disconnect(session.memberId, connection);
         const token = message.t === "join" ? message.sessionToken : undefined;
         session = { room: target, memberId: target.join(message.name, token, connection) };
@@ -104,6 +145,10 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
     registry,
     async close() {
       clearInterval(sweeper);
+      clearInterval(heartbeat);
+      for (const client of wss.clients) {
+        if (client.readyState === WebSocket.OPEN) client.send(JSON.stringify({ t: "serverRestarting" } satisfies ServerMessage));
+      }
       registry.dispose();
       for (const client of wss.clients) client.terminate();
       await new Promise<void>((resolve) => wss.close(() => resolve()));

@@ -9,9 +9,12 @@ export class RoomRegistry {
   constructor(
     private readonly options: RoomOptions = DEFAULT_ROOM_OPTIONS,
     private readonly idleMs = 30 * 60 * 1000,
+    private readonly maxRooms = 100,
   ) {}
 
-  create(): Room {
+  /** A new room with a fresh code, or null when the server already has `maxRooms`. */
+  create(): Room | null {
+    if (this.rooms.size >= this.maxRooms) return null;
     let code: string;
     do {
       code = Array.from({ length: 4 }, () => ROOM_CODE_ALPHABET[randomInt(ROOM_CODE_ALPHABET.length)]).join("");
@@ -29,12 +32,14 @@ export class RoomRegistry {
     return this.rooms.size;
   }
 
-  /** Remove rooms with nobody connected and no activity for `idleMs`. */
+  /** Remove rooms with nobody connected and no activity for `idleMs`, and long-gone watchers from the rest. */
   sweep(now = Date.now()) {
     for (const [code, room] of this.rooms) {
       if (room.connectedCount === 0 && now - room.lastActivity > this.idleMs) {
         room.dispose();
         this.rooms.delete(code);
+      } else {
+        room.sweepMembers(now);
       }
     }
   }

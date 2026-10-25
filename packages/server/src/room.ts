@@ -34,6 +34,10 @@ export interface RoomOptions {
   idleMs: number;
   /** How long after a wind break starts the host may remove people who haven't voted. */
   voteRemoveMs: number;
+  /** People (not bots) allowed in a room, playing or watching. */
+  maxMembers?: number;
+  /** How long a disconnected watcher stays in the room before being dropped. */
+  watcherTimeoutMs?: number;
   rules?: RuleConfig;
   /** Tests only: deal this exact wall (given who deals) instead of a random one. */
   wallForNextHand?: (dealer: Seat) => TileId[] | undefined;
@@ -47,6 +51,8 @@ export const DEFAULT_ROOM_OPTIONS: RoomOptions = {
   readyMs: 10_000,
   idleMs: 60_000,
   voteRemoveMs: 30_000,
+  maxMembers: 12,
+  watcherTimeoutMs: 10 * 60_000,
 };
 
 export interface RoomError {
@@ -63,6 +69,8 @@ interface Member {
   connection: Connection | null;
   /** A server-side bot: never connected, plays its seat with a policy. */
   bot: boolean;
+  /** When their connection closed, for dropping long-gone watchers. */
+  disconnectedAt: number | null;
 }
 
 /** A seat a bot is keeping for the person it replaced, who can take it back. */
@@ -118,6 +126,13 @@ export class Room {
 
   // ---- membership ----------------------------------------------------------------------------------
 
+  /** Whether someone can join: always when reconnecting with a known token, else only if there's room. */
+  canJoin(sessionToken: string | undefined): boolean {
+    if (sessionToken && [...this.members.values()].some((m) => m.token === sessionToken)) return true;
+    const people = [...this.members.values()].filter((m) => !m.bot).length;
+    return people < (this.options.maxMembers ?? Infinity);
+  }
+
   /** Join as a new member, or reconnect as an existing one by presenting their session token. */
   join(name: string, sessionToken: string | undefined, connection: Connection): string {
     this.lastActivity = Date.now();
@@ -125,8 +140,9 @@ export class Room {
     if (member) {
       member.name = name;
       member.connection = connection;
+      member.disconnectedAt = null;
     } else {
-      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection, bot: false };
+      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection, bot: false, disconnectedAt: null };
       this.members.set(member.id, member);
     }
     this.hostId ??= member.id;
@@ -145,6 +161,7 @@ export class Room {
     const member = this.members.get(memberId);
     if (!member || member.connection !== connection) return;
     member.connection = null;
+    member.disconnectedAt = Date.now();
     if (member.seat !== null) this.setController(member.seat, null);
     this.requests = this.requests.filter((id) => id !== memberId);
     this.afterSeatsChanged();
@@ -354,6 +371,26 @@ export class Room {
     return null;
   }
 
+  /**
+   * Drop watchers who disconnected more than `watcherTimeoutMs` ago. Seated people stay (their seat waits
+   * for them), and so does anyone a bot is keeping a seat for.
+   */
+  sweepMembers(now = Date.now()) {
+    const timeout = this.options.watcherTimeoutMs ?? Infinity;
+    const keep = new Set(this.reserved.flatMap((r) => (r ? [r.memberId] : [])));
+    let changed = false;
+    for (const m of [...this.members.values()]) {
+      if (m.bot || m.seat !== null || m.connection || keep.has(m.id)) continue;
+      if (m.disconnectedAt !== null && now - m.disconnectedAt > timeout) {
+        this.members.delete(m.id);
+        this.requests = this.requests.filter((id) => id !== m.id);
+        if (this.hostId === m.id) this.hostId = null;
+        changed = true;
+      }
+    }
+    if (changed) this.broadcastLobby();
+  }
+
   /** Stop timers and controllers (the room is being discarded). */
   dispose() {
     this.endHandTimers();
@@ -523,7 +560,15 @@ export class Room {
     const holder = this.seats[seat] ? this.members.get(this.seats[seat]!)! : null;
     if (holder?.bot) return;
     if (holder) holder.seat = null;
-    const bot: Member = { id: randomUUID().slice(0, 8), name: `Bot ${seat + 1}`, token: randomUUID(), seat, connection: null, bot: true };
+    const bot: Member = {
+      id: randomUUID().slice(0, 8),
+      name: `Bot ${seat + 1}`,
+      token: randomUUID(),
+      seat,
+      connection: null,
+      bot: true,
+      disconnectedAt: null,
+    };
     this.members.set(bot.id, bot);
     this.seats[seat] = bot.id;
     this.reserved[seat] = null;

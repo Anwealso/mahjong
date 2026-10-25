@@ -74,7 +74,7 @@ export function LobbyScreen() {
           return (
             <div key={seat} className={`seat-card${isMine ? " mine" : ""}`}>
               <div className="muted">
-                {WIND_GLYPHS[wind]} {WIND_NAMES[wind]}
+                Seat {seat + 1} · {WIND_GLYPHS[wind]} {WIND_NAMES[wind]}
               </div>
               <div className="seat-name">
                 {m?.id === lobby.hostId && <span title="Host">👑</span>}

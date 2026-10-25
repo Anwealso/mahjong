@@ -318,6 +318,10 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   and the floating button confirms. `P` / `C` / `K` choose pung / chow / kong options, `H` wins. Tiles
   are picked from loose tiles before grouped ones. The server only ever receives the tiles you confirmed.
 - **Action bar**: a status line plus buttons built from `legalActions` (claim, pass, win, set options).
+- **Sound** (`sound/`, details in [sound.md](sound.md)): when a `state` message arrives, the store passes
+  its `events` to `soundsFor` (pure, unit tested), which picks the sounds; `player.ts` plays them with Web
+  Audio. Recorded clips are in `public/sounds/`; alerts and fanfares are synthesised. The celebration
+  screen and host prompts play their own sounds. Mute / volume (`M`) sit in the top-left corner.
 - **Tiles**: `Tile.tsx` draws every tile (CSS boxes with labels for now, in three sizes), so an SVG tile
   set can replace it in one place.
 

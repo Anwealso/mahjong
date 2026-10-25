@@ -19,12 +19,13 @@ What the game sounds like, when each sound plays, and who hears it. Decision:
 |---|---|---|
 | Tile sounds (clacks, slides, shuffle) | [Kenney *Casino Audio*](https://kenney.nl/assets/casino-audio) (chip, card and dice foley), plus Kenney *Impact Sounds* if needed | CC0 |
 | Alerts (your turn, claim ping, host prompt) | Synthesised in the browser with Web Audio (soft sine/triangle tones) | our own |
-| Gong (celebration) | A CC0 Chinese/opera gong from [Freesound](https://freesound.org), chosen when building it; synthesised as a fallback | CC0 |
-| Fanfare, draw-hand thud, cheer | CC0 clips (Kenney or Freesound), or synthesised | CC0 / our own |
+| Gong (celebration) | ["Gong.wav" by Yin_Yang_Jake007](https://freesound.org/s/406109/) on Freesound (tagged Chinese gong), trimmed to one hit | CC0 |
+| Win fanfares, draw-hand thud | Synthesised (pentatonic arpeggios, a falling tone) | our own |
+| Cheer (celebration) | ["Small Audience Cheer"](https://freesound.org/s/863035/) on Freesound | CC0 |
 | Lobby music | Not chosen yet, see [Lobby music](#lobby-music) | |
 
-- Files live in `packages/client/public/sounds/` as small `.ogg`/`.mp3` files, about 10 files and under
-  100 KB in total (music not included).
+- Files live in `packages/client/public/sounds/` as AAC `.m4a` (64 kbps; plays in every browser): 9 files,
+  about 110 KB in total. They're small enough to commit directly; see [Where audio files live](#where-audio-files-live).
 - Every third-party file is listed in `packages/client/public/sounds/CREDITS.md` with its source URL and
   licence, even CC0 ones.
 - No audio library: plain Web Audio (`AudioContext`, decoded buffers, one gain node for volume).
@@ -36,7 +37,7 @@ What the game sounds like, when each sound plays, and who hears it. Decision:
 | Deal (`dealt`) | shuffle / wall-building rattle | everyone at the table |
 | Discard (`discarded`) | tile clack, a bit quieter for other players' discards | everyone |
 | Your draw (`drew` for your seat) | soft tile slide | you only |
-| Your turn starts | gentle chime | you only |
+| Your turn starts (your normal draw, or the deal when you're dealer) | gentle chime | you only |
 | A discard you can claim (`claimWindowOpened` and you have a legal claim) | short bright ping, alongside the glow | you only |
 | Someone claims a pung or chow (`melded`) | firmer double clack | everyone |
 | Kong (`melded` kong, `kongAdded`) | four-tile clack | everyone |
@@ -67,20 +68,42 @@ worth more than the small leak.
 ## Implementation
 
 - `packages/client/src/sound/cues.ts`: a **pure function**
-  `soundsFor(events, mySeat, legalActions, prev) → SoundId[]` that decides what to play for one `state`
+  `soundsFor(events, mySeat, dealer, legalActions) → Cue[]` (a sound plus a small delay, so sounds in the
+  same message don't pile up) that decides what to play for one `state`
   message. Unit tested (e.g. other players' draws are silent, the claim ping only plays when you have a
   claim, a kong plays the kong clack and not the pung one).
-- `packages/client/src/sound/player.ts`: loads and decodes the files once, plays a `SoundId` with a
-  per-sound volume, and holds the master gain and mute. Checked by hand, not unit tested.
+- `packages/client/src/sound/player.ts`: creates the `AudioContext` on the first click or key press,
+  loads and decodes the files, plays a sound with a per-sound volume (discards get a little random pitch
+  so they don't sound mechanical), synthesises the rest, and holds the saved volume/mute. The same sound
+  scheduled twice within 50 ms plays once (React StrictMode runs effects twice in dev). Checked in a
+  browser, not unit tested.
+- `packages/client/src/sound/SoundControls.tsx`: the mute button, slider and `M` shortcut.
+- The server sends `.m4a` as `audio/mp4`.
 - The store calls `soundsFor` when a `state` message arrives, next to the existing handling of
   `discarded` / `dealt` / `handOver`. Screens with their own moments (celebration, host prompts) play
   their sound when they appear.
 - Watchers (not seated) don't receive `state` messages, so they hear nothing during a hand.
 
+## Where audio files live
+
+- **Sound effects: committed in the repo** (`packages/client/public/sounds/`). About 110 KB, smaller than
+  `package-lock.json`, and they rarely change. Vite copies them into the build, so the Docker image and Fly
+  deploy need nothing extra.
+- **Keep them small:** short clips, mono where possible, AAC at 64 kbps. Replace a clip rather than adding
+  variants.
+- **Music, if we add it, is the size problem** (a 1–2 minute loop is about 1–2 MB, and every new version
+  stays in git history forever). Options when we get there:
+  - generate it in code (no files at all);
+  - **Git LFS**: keeps the repo small, but LFS storage and bandwidth on GitHub are limited and the deploy
+    workflow would need `lfs: true` on checkout;
+  - host it outside the repo (a GitHub Release asset or object storage) and download it at build time.
+
 ## Lobby music
 
-**Status: under discussion.** The aim is a loop for the lobby that is fun in the way Kahoot's lobby music
-is, but with a Chinese traditional flavour, like the backing of Fei Yu-ching's *Yi Jian Mei* (一剪梅).
+**Status: parked (2026-10-25).** Not being built for now; the notes below are kept for later.
+
+The aim is a loop for the lobby that is fun in the way Kahoot's lobby music is, but with a Chinese
+traditional flavour, like the backing of Fei Yu-ching's *Yi Jian Mei* (一剪梅).
 
 **Constraints:**
 - We can't use *Yi Jian Mei* or Kahoot's music, or close soundalikes: both are copyrighted. We can aim

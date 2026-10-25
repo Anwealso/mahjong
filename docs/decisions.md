@@ -379,7 +379,7 @@ for no benefit to a group that plays in sessions); saving rooms to a volume so d
 
 ## D26. Sound effects: recorded CC0 clips played from game events; lobby music to be chosen
 
-**Status:** accepted (sound effects) · lobby music open · 2026-10-25 · details in [sound.md](sound.md)
+**Status:** accepted and built (sound effects) · lobby music parked · 2026-10-25 · details in [sound.md](sound.md)
 
 - **Tile sounds are recorded CC0 clips** from Kenney's *Casino Audio* pack. Alerts are soft tones
   synthesised in the browser. Plain Web Audio, no audio library.
@@ -389,8 +389,10 @@ for no benefit to a group that plays in sessions); saving rooms to a volume so d
   can claim, pung/chow and kong clacks, win fanfare, draw-hand thud, and a gong plus cheer on the
   celebration screen. The host hears a soft notification for host prompts.
 - **Silent on purpose:** other players' draws, countdown ticks, and lobby join/leave.
-- **No music during a hand** (you're on a voice call). Lobby music is being chosen; the options are in
+- **No music during a hand** (you're on a voice call). Lobby music is parked; the options are in
   [sound.md](sound.md#lobby-music).
+- **Audio files are committed** (about 110 KB of AAC). Music, if added, would go in Git LFS, outside the
+  repo, or be generated in code, so the repo doesn't grow.
 - **Controls:** mute button, volume slider and `M`. On by default at about 60%, saved per browser.
 - **Accepted trade-off:** through an open mic, the claim ping can tell friends you had a claim.
 

@@ -84,7 +84,7 @@ Specified in [game-flow.md](game-flow.md) ([D22](decisions.md#d22-open-ended-gam
 
 - Smarter server-side bots ([D6](decisions.md#d6-seat-controllers-so-server-side-bots-can-be-added-later)). Random bots almost never win, so
   bot-heavy tables draw a lot and winds drag on.
-- Sounds: sound effects designed in [sound.md](sound.md) ([D26](decisions.md#d26-sound-effects-recorded-cc0-clips-played-from-game-events-lobby-music-to-be-chosen)); lobby music being chosen.
+- ✅ Sound effects ([sound.md](sound.md), [D26](decisions.md#d26-sound-effects-recorded-cc0-clips-played-from-game-events-lobby-music-to-be-chosen)). Lobby music parked.
 - SVG tile art, animations, chat.
 - Game history and replays (persist `seed + action log` to SQLite).
 - Optional faan scoring, flowers, and other `RuleConfig` variants.

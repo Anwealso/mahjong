@@ -57,7 +57,10 @@ worth more than the small leak.
 
 ## Controls
 
-- A speaker button in the top corner mutes and unmutes; next to it is a volume slider.
+- A **settings menu** behind a gear button in the top-right corner holds a mute button and a volume
+  slider (with the percentage). It closes on `Esc` or a click elsewhere; `Esc` there doesn't also pass on
+  a claim. On the table, Leave table sits just left of the gear. Future personal settings go in the same
+  menu.
 - `M` toggles mute (ignored while typing in a text field).
 - Sound is **on by default at about 60%**. The setting is saved in `localStorage`, so each person sets it
   once per browser.
@@ -77,7 +80,7 @@ worth more than the small leak.
   so they don't sound mechanical), synthesises the rest, and holds the saved volume/mute. The same sound
   scheduled twice within 50 ms plays once (React StrictMode runs effects twice in dev). Checked in a
   browser, not unit tested.
-- `packages/client/src/sound/SoundControls.tsx`: the mute button, slider and `M` shortcut.
+- `packages/client/src/SettingsMenu.tsx`: the gear button and menu (mute, volume) and the `M` shortcut.
 - The server sends `.m4a` as `audio/mp4`.
 - The store calls `soundsFor` when a `state` message arrives, next to the existing handling of
   `discarded` / `dealt` / `handOver`. Screens with their own moments (celebration, host prompts) play

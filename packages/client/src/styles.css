@@ -64,18 +64,29 @@ kbd {
   border-radius: 8px;
   z-index: 100;
 }
-.sound-controls {
-  position: fixed;
-  top: 12px;
-  left: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  z-index: 90;
+.settings { position: fixed; top: 12px; right: 12px; z-index: 90; }
+.settings-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; }
+.settings-button svg { transition: transform 0.3s; }
+.settings-button:hover svg, .settings-button.open svg { transform: rotate(45deg); }
+.settings-button.open { background: rgb(255 255 255 / 0.22); }
+.settings-menu {
+  position: absolute;
+  top: 46px;
+  right: 0;
+  min-width: 260px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: #0b3a2c;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
 }
-.sound-controls button { padding: 4px 8px; }
-.sound-controls input { width: 80px; accent-color: var(--gold); opacity: 0.6; }
-.sound-controls:hover input { opacity: 1; }
+.settings-menu h3 { margin: 0 0 10px; font-size: 0.95rem; }
+.setting { display: flex; align-items: center; gap: 8px; }
+.setting-label { flex: 1; }
+.setting button { padding: 4px 8px; }
+.setting input { width: 110px; accent-color: var(--gold); }
+.setting-value { width: 3em; text-align: right; font-variant-numeric: tabular-nums; opacity: 0.8; }
+.setting-hint { margin: 10px 0 0; font-size: 0.8rem; }
+.setting-hint kbd { margin: 0 2px 0 0; font-size: 0.85rem; }
 .connection { top: 12px; background: #8a5a00; }
 .notice { top: 12px; background: #7a1f1f; cursor: pointer; }
 
@@ -282,7 +293,7 @@ button.small { padding: 2px 8px; font-size: 0.8rem; margin-left: 8px; }
   background: #3b2a06;
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.4);
 }
-.leave-table { position: fixed; top: 12px; right: 12px; }
+.leave-table { position: fixed; top: 12px; right: 60px; }
 .hand-over p { margin: 12px 0 0; }
 .hand-over .scoreboard { min-width: 280px; }
 

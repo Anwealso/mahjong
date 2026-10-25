@@ -1,11 +1,11 @@
 import { useEffect } from "react";
 import { useRoom } from "./net/room";
 import { useStore } from "./net/store";
+import { SettingsMenu } from "./SettingsMenu";
 import { CelebrationScreen } from "./screens/CelebrationScreen";
 import { JoinScreen } from "./screens/JoinScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
 import { WindBreakScreen } from "./screens/WindBreakScreen";
-import { SoundControls } from "./sound/SoundControls";
 import { Table } from "./table/Table";
 
 /** Join → Lobby → Table (→ wind break → celebration), chosen from the room's phase. */
@@ -32,7 +32,7 @@ export function App() {
   return (
     <>
       {screen}
-      <SoundControls />
+      <SettingsMenu />
       {status !== "open" && <div className="connection">Connecting…</div>}
       {notice && (
         <div className="notice" onClick={dismissNotice}>

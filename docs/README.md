@@ -6,6 +6,7 @@ over a voice call. Desktop only for now.
 | Doc | What's in it |
 |---|---|
 | [rules.md](rules.md) | The exact ruleset the engine implements, the configurable variants, and a glossary |
+| [game-flow.md](game-flow.md) | Around the hands: host, seats and scores, dealer rotation, winds, ready-up, wind-break votes, dropouts, joining mid-game |
 | [architecture.md](architecture.md) | How the system fits together: packages, server-authoritative design, engine state machine, protocol, client |
 | [decisions.md](decisions.md) | Decision log: what was chosen, what was considered, and why |
 | [roadmap.md](roadmap.md) | Milestones, current status, open questions |

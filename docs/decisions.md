@@ -72,7 +72,8 @@ is irrelevant at 4 players.
 
 ## D6. Seat controllers, so server-side bots can be added later
 
-**Status:** accepted · 2026-10-25 (bots themselves are deferred)
+**Status:** accepted · 2026-10-25 (bots themselves are deferred) · the disconnect autopilot was removed by
+[D23](#d23-host-seat-owned-scores-and-handling-dropouts); random bots arrived with [D20](#d20-random-move-bots-from-the-lobby)
 
 The `Room` talks to a `SeatController` per seat, never to sockets directly. Humans, the disconnect
 autopilot, and future bots are all controllers. Bots get the same `PlayerView` as humans (so they can't
@@ -170,7 +171,7 @@ SVG tile set comes later (check its license before adding it).
 
 ## D14. Game structure: several hands with running points; the wall plays to the last tile
 
-**Status:** accepted · 2026-10-25
+**Status:** accepted · 2026-10-25 · game length refined by [D22](#d22-open-ended-games-wind-breaks-and-unanimous-continue-votes) (open-ended, not four winds)
 
 - A hand ends at the first win. Only one player can claim a discard ([D15](#d15-claims-are-first-come-first-served)), so there's only ever one winner. A game is
   several hands with running points, dealer rotation, and prevailing-wind rounds (see [rules.md](rules.md)).
@@ -209,7 +210,9 @@ there are never ties.
 
 ## D17. No discard time limit
 
-**Status:** accepted · 2026-10-25
+**Status:** accepted · 2026-10-25 · **partly superseded** by [D23](#d23-host-seat-owned-scores-and-handling-dropouts): still no
+automatic time limit, but after 60 s without a move the host may replace the player with a bot; and there's
+no autopilot any more
 
 Players can take as long as they like on their own turn; it's a casual game on a call. Disconnected
 players are covered by the autopilot. A generous limit (using the same autopilot) can be added later if
@@ -287,3 +290,46 @@ testing easy and lets three friends play. A person taking a bot's seat replaces 
 **Why:** grouping only complete sets keeps groups meaningful (they mirror what the table's
 `concealedSets` count shows); a floating toolbar puts the action next to the tiles it applies to; and
 keyboard shortcuts keep the first-come claim race fair for keyboard players.
+
+## D22. Open-ended games, wind breaks, and unanimous continue votes
+
+**Status:** accepted · 2026-10-25 · details in [game-flow.md](game-flow.md)
+
+- The first dealer is random (once per game). The dealer keeps the deal after a dealer win or a draw.
+- Games don't stop after four winds. At the end of every wind everyone returns to a special end-of-wind
+  lobby view: the finished wind's big logo, a podium for that wind, and the overall leaderboard.
+- Continuing to the next wind needs a **unanimous** vote of the seated people, with no countdown. Anyone
+  may **Leave** instead; a bot takes their seat (keeping its score) and they see the celebration screen.
+  After 30 s the host may remove anyone who hasn't voted. The game is over when no people remain seated.
+- The celebration screen has confetti for 1st and 2nd place and the full scoreboard.
+- Between hands: everyone clicks Ready, with a 10 s auto-continue countdown that stops while a seat is
+  empty or its player is offline. Anyone may Return to lobby to pause the game; the host resumes it.
+
+**Why:** the group plays for as long as the evening lasts. A natural stopping point every wind, with the
+standings in front of everyone, makes "one more wind?" an explicit group decision. Unanimity means nobody
+gets dragged into another wind, and leavers are backfilled so the others can keep going.
+
+**Considered:** a fixed game length chosen up front (one, two, or four winds); a majority vote with a
+30 s timer; ending when anyone votes to stop.
+
+## D23. Host, seat-owned scores, and handling dropouts
+
+**Status:** accepted · 2026-10-25 · supersedes the autopilot of [D6](#d6-seat-controllers-so-server-side-bots-can-be-added-later)
+and partly [D17](#d17-no-discard-time-limit) · details in [game-flow.md](game-flow.md)
+
+- The room creator is the **host**; if they go, the longest-present connected person takes over. The host
+  starts and resumes games, removes players, fills seats with bots, and handles dropouts and join requests.
+- **Scores belong to seats.** Whoever plays a seat (person or bot) inherits its score.
+- **No autopilot.** When someone leaves, disconnects, or makes no move for 60 s on their decision, the
+  game waits and the host chooses: replace them with a bot, wait, or cancel the hand and return to the
+  lobby (the hand doesn't count; the same dealer redeals).
+- A disconnected person gets their seat back automatically on reconnecting, even from a bot. An idle person
+  who was replaced can take their seat back. Someone who left gave it up.
+- Newcomers mid-game ask to play; when the host approves they replace a random bot at once (tiles and
+  score included). In the paused lobby or a wind break they simply pick a bot to replace.
+
+**Why:** the host is on the call and can judge "they're just getting a drink" vs "they've gone", which a
+timer can't. Seat-owned scores make swapping people and bots in and out painless.
+
+**Considered:** an autopilot that plays automatically after a timeout (the old behaviour: it hid the problem
+and played badly); scores per person (complicated when people swap seats or leave).

@@ -137,10 +137,13 @@ The discarder never pays double. **Kongs pay nothing**: a kong is just a set.
 
 ## Dealer and rounds
 
-- The dealer **keeps the deal** after a dealer win or a draw hand. Otherwise the deal passes to the next
-  player in turn order.
-- After the deal has gone all the way round, the prevailing wind advances: East → South → West → North.
-  A full game is four prevailing-wind rounds. Players can end earlier by agreement.
+- The first dealer of a game is chosen at random.
+- The dealer **keeps the deal** after a dealer win or a draw hand (no limit on how many times in a row).
+  Otherwise the deal passes to the next player in turn order.
+- After the deal has gone all the way round, the prevailing wind advances: East → South → West → North,
+  then back to East. **Games are open-ended:** at the end of each wind the players vote on whether to
+  continue. Scores are running totals kept per seat. See [game-flow.md](game-flow.md) for wind breaks,
+  readying up between hands, the host, and what happens when people leave or join.
 - Seat and prevailing winds don't affect scoring under these rules; they're tracked for display and for
   possible faan scoring later.
 

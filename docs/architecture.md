@@ -129,8 +129,8 @@ transitions, not player actions.
 | Phase | Actor | Actions |
 |---|---|---|
 | `awaitDiscard` | turn seat | `discard(tile)`, `concealedKong(kind)`, `addedKong(tile)`, `selfDrawWin` (only if they drew) |
-| `claimWindow` (discard) | each other seat | `pass`, `win`, `pung`, `kong`, `chow(tiles)` (chow: next seat only) |
-| `claimWindow` (added kong) | each other seat | `pass`, `win`. Only opened when `robbingKong` is on |
+| `claimWindow` | each other seat that could use the tile | `claim` (first one takes it), `pass`. For an added kong (only when `robbingKong` is on), only seats that could win may claim |
+| `claimed` | the claimer only | `win`, `pung(tiles)`, `kong(tiles)`, `chow(tiles)`: whichever apply. No pass |
 | `handOver` | — | Nothing. Starting the next hand belongs to the game layer (milestone 5) |
 
 Engine API (all pure; `engine/src/hand.ts` and `view.ts`). The engine models **one hand**; the multi-hand
@@ -157,9 +157,14 @@ early once every seat that *can* claim has answered. Seats with no legal claim a
 and if nobody can claim at all, no window opens and the next player draws straight away (see
 [D10](decisions.md#d10-claim-window-at-most-5-seconds-closes-early)).
 
-Claim resolution is **first come, first served** ([D15](decisions.md#d15-claims-are-first-come-first-served)):
-the first valid claim takes the tile and closes the window immediately. Pung, kong, chow, and concealed
-kong actions carry the exact hand tiles the player selected ([D16](decisions.md#d16-players-select-tiles-to-form-sets-hand-order-is-client-side-only)).
+Claim resolution is **first come, first served** ([D15](decisions.md#d15-claims-are-first-come-first-served))
+and **two-step** ([D18](decisions.md#d18-claiming-is-two-steps-claim-the-tile-then-use-it)): the first
+`claim` takes the tile and closes the window. The claimer then uses it in the `claimed` phase. Pung,
+kong, chow, and concealed kong actions carry the exact hand tiles the player selected.
+
+Views include each player's `concealedSets`: the most complete sets the server can find in their
+concealed tiles (`maxConcealedSets` in `win.ts`). That's all anyone learns about another player's hidden
+hand ([D19](decisions.md#d19-personal-groups-are-private-everyone-sees-complete-concealed-set-counts)).
 
 ### Scoring
 
@@ -246,10 +251,15 @@ Server → client:
 - Screens: **Join** (room code + nickname) → **Lobby** (pick a seat, start) → **Table**.
 - Table layout: your hand along the bottom; opponents' face-down hands and exposed melds to the left, top,
   and right; a discard pond per player in the middle; wall count and prevailing wind in the center.
-- **Your hand is yours to arrange:** drag tiles into any order to group partly formed sets. The order is
-  kept client-side by `TileId`. New tiles are added at the end, and the order is never sent to the server.
-- **Select, then declare:** to claim a pung, kong, or chow (or declare a concealed kong), select the tiles in
-  your hand, then press the button. The action carries exactly those tiles. Nothing is formed automatically.
+- **Your hand is yours to arrange:** drag tiles into any order, and group them into private "soft" sets you
+  can change at any time. Order and groups are kept client-side by `TileId` in `localStorage` (so they
+  survive a refresh). New tiles are added at the end. None of it is sent to the server.
+- **Claiming:** during a claim window the discard is clickable if you could use it. Clicking sends
+  `claim`. Then the client shows the ways you can use it (win, or which set). For a set, the tiles that fit
+  are highlighted and you pick them; then the action is sent with exactly those tiles.
+- **Concealed kong:** select the four tiles, then declare. Nothing is ever formed automatically.
+- **Opponents:** locked sets face up, then `concealedSets` face-down groups of three, then the remaining
+  tiles face down and loose.
 - Action bar: rendered straight from `legalActions`, with a countdown ring during claim windows. Keyboard
   shortcuts for speed (e.g. `P` pung, `C` chow, `K` kong, `H` win, `Space` pass).
 - Tiles: CSS boxes with labels in v1, swapped for an open-source SVG tile set later.

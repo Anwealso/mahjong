@@ -197,7 +197,7 @@ there are never ties.
 
 ## D16. Players select tiles to form sets; hand order is client-side only
 
-**Status:** accepted · 2026-10-25
+**Status:** accepted · 2026-10-25 · claiming is refined by [D18](#d18-claiming-is-two-steps-claim-the-tile-then-use-it); personal groups by [D19](#d19-personal-groups-are-private-everyone-sees-complete-concealed-set-counts)
 
 - Nothing is formed automatically. Pung, kong, and chow claims (and concealed kongs) carry the exact hand
   tiles the player selected. The engine validates them (in hand, distinct, right kinds) and never picks
@@ -214,3 +214,38 @@ there are never ties.
 Players can take as long as they like on their own turn; it's a casual game on a call. Disconnected
 players are covered by the autopilot. A generous limit (using the same autopilot) can be added later if
 someone keeps wandering off.
+
+## D18. Claiming is two steps: claim the tile, then use it
+
+**Status:** accepted · 2026-10-25
+
+1. In the claim window, anyone who could use the discard may **claim** it (one click on the tile; no tiles
+   or set type chosen). The first claim takes it; everyone else only learns that it was claimed.
+2. The claimer must then **use** it: win (if it completes their hand) or form a set, choosing the set
+   type and tiles if there's more than one option. There's no passing or backing out at this point.
+
+Sets formed from claimed tiles stay locked (see [rules.md](rules.md)). If the claimer disconnects
+before using the tile, the autopilot finishes the claim (winning if it can).
+
+**Why:** claiming is a fast reflex (it's first come, first served), and choosing tiles shouldn't slow you
+down in a race. Choosing comes after the race is won.
+
+**Engine:** a `claim` action in the window, then a `claimed` phase in which only the claimer acts, with
+options `win` / `pung` / `kong` / `chow` (each carrying the selected tiles).
+
+## D19. Personal groups are private; everyone sees complete concealed set counts
+
+**Status:** accepted · 2026-10-25
+
+- Players can group their concealed tiles into "soft" sets and change them freely. These groups are purely
+  for the player, stay in their browser (`localStorage`), and are never sent to the server.
+- Everyone sees each player's **number of complete concealed sets** (`PublicPlayer.concealedSets`), worked
+  out by the server from the best possible grouping, whether or not the player uses groups. Set types,
+  pairs, and partial runs are never revealed; they count as loose tiles.
+
+**Why:** seeing everyone's progress is more fun. Computing it on the server means hiding your progress
+isn't possible, so there's no incentive to avoid the grouping feature. Not counting pairs or partial
+runs means the table sees "one set from winning", never "one tile from winning".
+
+**Considered:** showing the player's own groups to others (rejected: it rewards not using the feature);
+also showing pairs and partial runs (rejected: it would reveal when someone is one tile from winning).

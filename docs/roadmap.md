@@ -45,7 +45,9 @@ Milestones in build order. Each one should end with passing tests and something 
 - Zustand store and WebSocket connection module (`client/src/net/`).
 - Screens: Join → Lobby → Table.
 - Table: your hand, opponents' melds and face-down hands, discard ponds, wall count, prevailing wind.
-- Drag to reorder your hand (client-side only); select tiles, then declare pung, kong, or chow.
+- Drag to reorder your hand and keep private soft groups (client-side only, saved in `localStorage`).
+- Click a discard to claim it, then choose how to use it (win, or which set and which tiles).
+- Opponents shown with locked sets face up and their complete concealed sets face down.
 - Action bar built from `legalActions`, claim countdown, keyboard shortcuts.
 
 ## 5. Full game

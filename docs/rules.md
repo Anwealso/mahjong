@@ -42,48 +42,69 @@ honors as repeated codes: `123c 456d 789b EEE RR`.
 
 ## Claiming a discard
 
-| Claim | Who may claim | Needs in hand | Result |
+Claiming takes **two steps**:
+
+1. **Claim the tile.** After a discard, anyone who could use it (see the table) may click it to take it.
+   You don't say what it's for yet. **First come, first served:** the first claim gets the tile, whatever
+   it's for. The server handles one message at a time, so there are never ties. Everyone else just sees
+   that you claimed it.
+2. **Use the tile.** You must now use it. Play doesn't continue until you do, and there's no backing out.
+   Either declare a **win**, if the tile completes your hand, or **form a set**: choose which set (if
+   the tile fits more than one) and pick the tiles from your hand. Only tiles that fit are offered.
+   Then discard as usual. Play continues from you, so turns can be skipped.
+
+| Use | Who may claim for it | Needs in hand | After forming |
 |---|---|---|---|
-| **Win** (食糊) | Anyone | A hand that wins with this tile | Hand ends |
-| **Pung** (碰) | Anyone | 2 of the same kind | Expose the pung, then discard (no draw) |
-| **Exposed kong** (槓) | Anyone | 3 of the same kind | Expose the kong, take a replacement draw, then discard |
-| **Chow** (上) | **Only the next player** (the discarder is on their left) | 2 tiles completing a run of 3 in one suit | Expose the chow, then discard (no draw) |
+| **Win** (食糊) | Anyone | A hand that wins with this tile | The hand ends |
+| **Pung** (碰) | Anyone | 2 of the same kind | Discard (no draw) |
+| **Exposed kong** (槓) | Anyone | 3 of the same kind | Replacement draw, then discard |
+| **Chow** (上) | **Only the next player** (the discarder is on their left) | 2 tiles completing a run of 3 in one suit | Discard (no draw) |
 
-**First come, first served.** There's no ranking between claim types: whoever claims the discard first gets
-it, whether that's a win, pung, kong, or chow. The server handles one message at a time, so there are
-never ties. Play then continues from the claimer, so turns can be skipped.
+For example, holding `34 67` of bamboo, a discarded `5` could become `345`, `456`, or `567`: you choose.
+Holding `55 46`, it could be a pung or a chow.
 
-**Claim timing:** after each discard the server opens a claim window of **at most 5 seconds**. Players
-with no legal claim pass automatically. The window closes as soon as **someone claims**, as soon as **every
-eligible player has passed**, or when the 5 seconds run out (anyone who hasn't answered passes).
-
-**Selecting tiles.** Nothing is ever formed automatically. To claim a pung, kong, or chow, the player selects
-the tiles from their own hand and then chooses the claim. Concealed kongs work the same way (select all
-four, then declare). The server checks that the selected tiles are in that player's hand and form the set
-with the claimed tile.
-
-**Arranging your hand.** Players can drag their concealed tiles into any order, for example to group partly
-formed sets. This is purely on the player's own screen: the order isn't sent to the server or shown to
-anyone.
+**Claim timing:** after each discard the server opens a claim window of **at most 5 seconds**. Players who
+couldn't use the tile pass automatically. The window closes as soon as **someone claims**, as soon as
+**every eligible player has passed**, or when the 5 seconds run out (anyone who hasn't answered passes).
 
 **Passing up a win is allowed.** A win is never automatic: a player who could win on a discard can pass,
-and a player who self-draws a winning tile can just discard instead. There's no penalty for passing, and
-later wins aren't restricted. (This also keeps everyone paying attention.)
+or claim it and form a set instead, and a player who self-draws a winning tile can just discard. There's
+no penalty for passing, and later wins aren't restricted. (This also keeps everyone paying attention.)
 
-## Declared sets are locked
+## Sets: locked, and personal groups
 
-Once a set is declared (a chow, pung, or kong claimed from a discard, or a concealed kong), it's placed in
-front of the player and **locked**. Its tiles can never be discarded, rearranged, or used in another set.
-Discards always come from the player's remaining hand tiles.
+**Sets made from a claimed discard are locked.** Once formed, they're placed face-up in front of the
+player. Their tiles can never be discarded, rearranged, or used in another set. (Otherwise you could claim
+any tile you hold a pair of, "form" a pung, then break it up again: claiming would become a free way to
+grab discards.) The one change allowed is the **added kong**: add the 4th matching tile from your hand to
+your own exposed pung.
 
-A **concealed kong is shown to the table** once declared, so everyone knows its kind.
+**Concealed kongs** are declared by selecting all four tiles. They're locked too, take a replacement
+draw, and are shown to the table so everyone knows their kind.
 
-Any tile still in your hand may be discarded, including straight after a claim. For example, after
-claiming a `4` to chow `456` you may discard a `7` you were holding. (Some rule sets ban this; casual Hong
-Kong play doesn't.)
+**Personal groups are free.** Players may group their own concealed tiles into "soft" sets to keep track
+of them, and take tiles out, add tiles, or regroup at any time. These groups have no meaning in the rules,
+are never formed automatically, and are **private**: they live only on the player's own screen (saved in
+the browser so they survive a refresh). You never need them to win: the engine checks the whole hand when
+you declare a win.
 
-The one exception is the **added kong**: a player may add the 4th matching tile to their own exposed pung,
-turning it into a kong. The pung's tiles stay together; the set just grows.
+Any concealed tile may be discarded, including straight after a claim. For example, after claiming a `4`
+to chow `456` you may discard a `7` you were holding. (Some rule sets ban this; casual Hong Kong play
+doesn't.)
+
+## What other players see
+
+For every player, everyone sees:
+
+- their **locked sets**, face up, and their discards;
+- how many tiles are in their hand;
+- **how many complete sets their concealed tiles contain**, shown face down. The server always counts the
+  best possible grouping, whether or not the player groups anything themselves, so personal groups give
+  no advantage or disadvantage.
+
+What's never shown: which tiles are in those concealed sets, whether they're pungs or chows, and any
+pairs or partial runs (e.g. `4-5` or `4-6`). Those all count as loose tiles. So the table can see when
+someone is **one set** from winning, but not when they're one tile away.
 
 ## Winning hands
 

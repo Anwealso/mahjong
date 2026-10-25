@@ -2,6 +2,7 @@ import { randomInt, randomUUID } from "node:crypto";
 import {
   applyAction,
   closeClaimWindow,
+  DEFAULT_GAME_SETTINGS,
   DEFAULT_RULES,
   legalActions,
   newGame,
@@ -12,6 +13,7 @@ import {
   startHand,
   type Action,
   type GameEvent,
+  type GameSettings,
   type GameState,
   type HandState,
   type RuleConfig,
@@ -85,6 +87,7 @@ export class Room {
   private readonly reserved: (Reservation | null)[] = EMPTY(null);
   private hostId: string | null = null;
   private phase: RoomPhase = "lobby";
+  private settings: GameSettings = DEFAULT_GAME_SETTINGS;
   private game: GameState | null = null;
   private hand: HandState | null = null;
   /** Bumped whenever something visible happens. Actions must quote the version they were made against. */
@@ -236,10 +239,19 @@ export class Room {
     return null;
   }
 
+  /** Before a game: the host changes the game settings. They're fixed once the game starts. */
+  updateSettings(memberId: string, settings: Partial<GameSettings>): RoomError | null {
+    const denied = this.requireHost(memberId) ?? this.requirePhase(["lobby"]);
+    if (denied) return denied;
+    this.settings = { ...this.settings, ...settings };
+    this.broadcastLobby();
+    return null;
+  }
+
   startGame(memberId: string): RoomError | null {
     const denied = this.requireHost(memberId) ?? this.requirePhase(["lobby"]) ?? this.requireFull();
     if (denied) return denied;
-    this.game = newGame(this.options.firstDealer?.() ?? (randomInt(4) as Seat));
+    this.game = newGame(this.options.firstDealer?.() ?? (randomInt(4) as Seat), this.settings);
     this.dealHand();
     return null;
   }
@@ -642,6 +654,7 @@ export class Room {
       members,
       seats: [...this.seats],
       seatInfo,
+      settings: this.settings,
       game: this.game,
       readyMsLeft: this.readyDeadline === null ? null : Math.max(0, this.readyDeadline - now),
       voteRemoveMsLeft: this.phase === "windBreak" ? Math.max(0, this.windBreakAt + this.options.voteRemoveMs - now) : null,

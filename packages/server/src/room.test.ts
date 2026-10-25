@@ -274,10 +274,19 @@ describe("between hands", () => {
     expect(ctx.conns[0]!.state.view.dealer).toBe(1);
   });
 
-  it("the dealer keeps the deal after winning", () => {
+  it("the deal passes on even after a dealer win, unless the host turned on dealerKeepsDeal", () => {
     const ctx = start(DEALER_WINS);
     act(ctx, 0, { type: "selfDrawWin" });
-    expect(ctx.conns[0]!.lobby.game).toMatchObject({ dealer: 0, scores: [3, -1, -1, -1] });
+    expect(ctx.conns[0]!.lobby.game).toMatchObject({ dealer: 1, scores: [3, -1, -1, -1] });
+
+    const keep = setup(DEALER_WINS);
+    expect(keep.room.updateSettings(keep.ids[1]!, { dealerKeepsDeal: true })?.code).toBe("notHost");
+    expect(keep.room.updateSettings(keep.ids[0]!, { dealerKeepsDeal: true })).toBeNull();
+    expect(keep.conns[1]!.lobby.settings).toEqual({ dealerKeepsDeal: true });
+    keep.room.startGame(keep.ids[0]!);
+    expect(keep.room.updateSettings(keep.ids[0]!, { dealerKeepsDeal: false })?.code).toBe("handInProgress");
+    act(keep, 0, { type: "selfDrawWin" });
+    expect(keep.conns[0]!.lobby.game).toMatchObject({ dealer: 0, settings: { dealerKeepsDeal: true } });
   });
 
   it("deals anyway when the countdown runs out, but not while someone is offline", async () => {

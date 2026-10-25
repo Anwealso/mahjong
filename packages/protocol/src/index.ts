@@ -1,4 +1,4 @@
-import type { Action, GameEvent, GameState, PlayerView, Seat } from "@mahjong/engine";
+import type { Action, GameEvent, GameSettings, GameState, PlayerView, Seat } from "@mahjong/engine";
 import { z } from "zod";
 
 /**
@@ -70,6 +70,8 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
   /** Throw away the hand being played and pause in the lobby. */
   z.object({ t: z.literal("cancelHand") }),
   z.object({ t: z.literal("answerRequest"), memberId: z.string().max(20), approve: z.boolean() }),
+  /** Before a game: change the game settings (only the ones given). */
+  z.object({ t: z.literal("updateSettings"), settings: z.object({ dealerKeepsDeal: z.boolean() }).partial() }),
   /** Needs all four seats filled. The first dealer is random. */
   z.object({ t: z.literal("startGame") }),
   z.object({ t: z.literal("resumeGame") }),
@@ -120,6 +122,8 @@ export interface LobbyMessage {
   /** Member id in each seat. */
   seats: (string | null)[];
   seatInfo: SeatInfo[];
+  /** For the next game (and the current one, which copied them when it started). */
+  settings: GameSettings;
   /** Dealer, wind, running scores per seat, and every finished hand. Null before a game starts. */
   game: GameState | null;
   /** Between hands: time left before the next hand is dealt anyway. Null while the countdown is stopped. */

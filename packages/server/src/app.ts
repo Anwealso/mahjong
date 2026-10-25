@@ -79,6 +79,8 @@ export async function startServer({ port, room = DEFAULT_ROOM_OPTIONS }: ServerO
           return fail(room.cancelHand(memberId));
         case "answerRequest":
           return fail(room.answerRequest(memberId, message.memberId, message.approve));
+        case "updateSettings":
+          return fail(room.updateSettings(memberId, message.settings));
         case "startGame":
           return fail(room.startGame(memberId));
         case "resumeGame":

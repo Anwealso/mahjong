@@ -1,0 +1,38 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #f2efe6;
+  background: #0f4d3a; /* felt */
+}
+body { margin: 0; }
+.playground { max-width: 1100px; margin: 0 auto; padding: 32px; }
+.muted { opacity: 0.75; }
+.mono { font-family: ui-monospace, monospace; opacity: 0.8; }
+.win { font-size: 1.5rem; font-weight: 700; color: #ffd76a; }
+
+.hand { display: flex; gap: 4px; margin: 24px 0 8px; }
+.tile-button { all: unset; cursor: pointer; transition: transform 80ms; }
+.tile-button:hover:not(:disabled) { transform: translateY(-8px); }
+
+.tile {
+  width: 52px;
+  height: 72px;
+  border-radius: 6px;
+  background: linear-gradient(#fffdf6, #ece6d3);
+  box-shadow: 0 3px 0 #c9bf9f, 0 5px 8px rgb(0 0 0 / 0.35);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #1b1b1b;
+  user-select: none;
+}
+.tile-highlight { outline: 3px solid #ffd76a; }
+.tile-rank { font-size: 1.6rem; font-weight: 700; line-height: 1; }
+.tile-suit { font-size: 1rem; }
+.tile-honor { font-size: 2rem; }
+.tile-characters .tile-suit { color: #b3261e; }
+.tile-dots .tile-rank, .tile-dots .tile-suit { color: #1f4fa3; }
+.tile-bamboo .tile-rank, .tile-bamboo .tile-suit { color: #1d7a3e; font-weight: 900; }
+.tile-dragon .tile-honor { color: #b3261e; }
+.tile[title="Green Dragon"] .tile-honor { color: #1d7a3e; }
+.tile[title="White Dragon"] { box-shadow: inset 0 0 0 6px #fffdf6, inset 0 0 0 8px #1f4fa3, 0 3px 0 #c9bf9f, 0 5px 8px rgb(0 0 0 / 0.35); }

@@ -1,0 +1,23 @@
+{
+  "name": "@mahjong/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "node dist/server.mjs",
+    "typecheck": "tsc -p .",
+    "build": "node build.mjs"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15"
+  },
+  "dependencies": {
+    "@mahjong/engine": "*",
+    "@mahjong/protocol": "*",
+    "ws": "^8.22.0",
+    "zod": "^4.6.7"
+  }
+}

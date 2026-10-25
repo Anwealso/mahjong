@@ -113,8 +113,9 @@ describe("hand flow", () => {
     act(ctx, 0, { type: "discard", tile: fiveBamboo(ctx.conns[0]!) });
     const seat2 = ctx.conns[2]!.state;
     act(ctx, 1, { type: "pass" });
-    const pung = seat2.legalActions.find((a) => a.type === "pung")!;
-    expect(ctx.room.act(ctx.ids[2]!, pung, seat2.stateVersion)).toBeNull();
+    expect(ctx.room.act(ctx.ids[2]!, { type: "claim" }, seat2.stateVersion)).toBeNull();
+    const pung = ctx.conns[2]!.state.legalActions.find((a) => a.type === "pung")!;
+    act(ctx, 2, pung);
     expect(ctx.conns[2]!.state.view.phase).toEqual({ kind: "awaitDiscard", seat: 2 });
   });
 
@@ -173,6 +174,16 @@ describe("disconnects", () => {
     ctx.room.join("P1", welcome.sessionToken, fresh);
     ctx.room.disconnect(ctx.ids[1]!, ctx.conns[1]!);
     expect(fresh.lobby.members[1]!.connected).toBe(true);
+  });
+
+  it("the autopilot finishes a claim if the player disconnects mid-claim", async () => {
+    const ctx = start(CHOW_VS_PUNG);
+    act(ctx, 0, { type: "discard", tile: fiveBamboo(ctx.conns[0]!) });
+    act(ctx, 2, { type: "claim" });
+    expect(ctx.conns[0]!.state.view.phase).toMatchObject({ kind: "claimed", seat: 2 });
+    ctx.room.disconnect(ctx.ids[2]!, ctx.conns[2]!);
+    await sleep(30);
+    expect(ctx.conns[0]!.state.view.players[2]!.melds).toHaveLength(1);
   });
 });
 

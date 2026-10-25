@@ -66,10 +66,14 @@ export class PolicyController implements SeatController {
   }
 }
 
-/** For a disconnected player: never claim, and discard the tile just drawn (or the last tile in hand). */
+/**
+ * For a disconnected player: never claim, and discard the tile just drawn (or the last tile in hand). If
+ * they disconnected right after claiming a tile, finish the claim (winning if possible).
+ */
 export const autopilotPolicy: Policy = (view, legalActions) => {
   const pass = legalActions.find((a) => a.type === "pass");
   if (pass) return pass;
+  if (view.phase.kind === "claimed") return legalActions.find((a) => a.type === "win") ?? legalActions[0]!;
   const tile = view.lastDrawn ?? view.hand[view.hand.length - 1]!;
   return legalActions.find((a) => a.type === "discard" && a.tile === tile) ?? legalActions[0]!;
 };

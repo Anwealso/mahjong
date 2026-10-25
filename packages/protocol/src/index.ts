@@ -26,6 +26,7 @@ export const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("selfDrawWin") }),
   z.object({ type: z.literal("concealedKong"), tiles: z.array(tileId).length(4) }),
   z.object({ type: z.literal("addedKong"), tile: tileId }),
+  z.object({ type: z.literal("claim") }),
   z.object({ type: z.literal("pass") }),
   z.object({ type: z.literal("win") }),
   z.object({ type: z.literal("pung"), tiles: z.tuple([tileId, tileId]) }),

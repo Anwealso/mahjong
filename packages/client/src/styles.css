@@ -43,6 +43,15 @@ kbd {
 }
 .buttons { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 24px; }
 .lobby a { color: var(--gold); }
+/* The lobby stays centred; side panels (game settings) hang just to its right on wide screens. */
+.lobby { position: relative; }
+.lobby-aside { position: absolute; top: 48px; left: calc(100% + 16px); width: 280px; display: grid; gap: 16px; }
+.lobby-aside section { padding: 16px; border-radius: 12px; background: rgb(0 0 0 / 0.18); }
+.lobby-aside h2 { margin: 0 0 12px; font-size: 1.1rem; }
+/* Too narrow to fit beside the 768px lobby: stack it underneath instead. */
+@media (max-width: 1383px) {
+  .lobby-aside { position: static; width: auto; margin-top: 24px; }
+}
 .seats { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-top: 24px; }
 .seat-card {
   display: grid;
@@ -64,12 +73,12 @@ kbd {
   border-radius: 8px;
   z-index: 100;
 }
-.settings { position: fixed; top: 12px; left: 12px; z-index: 90; }
-.settings-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; }
-.settings-button svg { transition: transform 0.3s; }
-.settings-button:hover svg, .settings-button.open svg { transform: rotate(45deg); }
-.settings-button.open { background: rgb(255 255 255 / 0.22); }
-.settings-menu {
+.user-settings { position: fixed; top: 12px; left: 12px; z-index: 90; }
+.user-settings-button { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; }
+.user-settings-button svg { transition: transform 0.3s; }
+.user-settings-button:hover svg, .user-settings-button.open svg { transform: rotate(45deg); }
+.user-settings-button.open { background: rgb(255 255 255 / 0.22); }
+.user-settings-menu {
   position: absolute;
   top: 46px;
   left: 0;
@@ -79,7 +88,7 @@ kbd {
   background: #0b3a2c;
   box-shadow: 0 8px 24px rgb(0 0 0 / 0.45);
 }
-.settings-menu h3 { margin: 0 0 10px; font-size: 0.95rem; }
+.user-settings-menu h3 { margin: 0 0 10px; font-size: 0.95rem; }
 .setting { display: flex; align-items: center; gap: 8px; }
 .setting-label { flex: 1; }
 .setting input { width: 110px; accent-color: var(--gold); }
@@ -349,7 +358,7 @@ button.small { padding: 2px 8px; font-size: 0.8rem; margin-left: 8px; }
   to { transform: translateY(110vh) rotate(720deg); }
 }
 
-.settings label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
-.settings label.muted { cursor: default; }
-.settings input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--gold); }
+.game-settings label { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.game-settings label.muted { cursor: default; }
+.game-settings input[type="checkbox"] { flex-shrink: 0; width: 18px; height: 18px; accent-color: var(--gold); }
 p.small { font-size: 0.85rem; margin: 6px 0 0 28px; }

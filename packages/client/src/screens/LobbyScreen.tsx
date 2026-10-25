@@ -41,27 +41,6 @@ export function LobbyScreen() {
         </section>
       )}
 
-      {(phase === "lobby" || phase === "paused") && (
-        <section className="settings">
-          <h2>Game settings</h2>
-          <label className={isHost && phase === "lobby" ? undefined : "muted"}>
-            <input
-              type="checkbox"
-              checked={(game?.settings ?? lobby.settings).dealerKeepsDeal}
-              disabled={!isHost || phase !== "lobby"}
-              onChange={(e) => send({ t: "updateSettings", settings: { dealerKeepsDeal: e.target.checked } })}
-            />
-            Dealer keeps the deal after a dealer win or a draw
-          </label>
-          <p className="muted small">
-            {(game?.settings ?? lobby.settings).dealerKeepsDeal
-              ? "Traditional: winds last until every seat has lost the deal."
-              : "The deal passes on after every hand, so each wind is exactly four hands."}
-            {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
-          </p>
-        </section>
-      )}
-
       <div className="seats">
         {SEATS.map((seat) => {
           const m = room.memberAt(seat);
@@ -148,6 +127,30 @@ export function LobbyScreen() {
           Leave room
         </button>
       </div>
+
+      {/* Side column, just right of the centred lobby. */}
+      <aside className="lobby-aside">
+        {(phase === "lobby" || phase === "paused") && (
+          <section className="game-settings">
+            <h2>Game settings</h2>
+            <label className={isHost && phase === "lobby" ? undefined : "muted"}>
+              <input
+                type="checkbox"
+                checked={(game?.settings ?? lobby.settings).dealerKeepsDeal}
+                disabled={!isHost || phase !== "lobby"}
+                onChange={(e) => send({ t: "updateSettings", settings: { dealerKeepsDeal: e.target.checked } })}
+              />
+              Dealer keeps the deal after a dealer win or a draw
+            </label>
+            <p className="muted small">
+              {(game?.settings ?? lobby.settings).dealerKeepsDeal
+                ? "Traditional: winds last until every seat has lost the deal."
+                : "The deal passes on after every hand, so each wind is exactly four hands."}
+              {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
+            </p>
+          </section>
+        )}
+      </aside>
     </main>
   );
 }

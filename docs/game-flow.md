@@ -91,6 +91,12 @@ Shown when the game is over, and to anyone who leaves at a wind break:
 
 The host clicks **New game** to return to the lobby with all scores reset (seats stay as they are).
 
+## Known limitation: random bots rarely win
+
+The bots play random legal moves, so they almost never complete a hand. At a table that's mostly bots,
+most hands end as draws, the dealer keeps the deal, and a wind can take a very long time to finish.
+Smarter bots (milestone 7) fix this; they're just new policies.
+
 ## Dropouts during a hand
 
 There's no automatic play for a missing person ([D23](decisions.md#d23-host-seat-owned-scores-and-handling-dropouts)).
@@ -120,8 +126,9 @@ automatically when the 5 s run out, as anyone does.
 ## Joining part-way through a game
 
 - **During a hand or between hands:** a watcher clicks **Request to play**. The host sees an approve /
-  decline prompt. When approved, the newcomer replaces **a random bot** straight away (mid-hand included),
-  taking over its tiles and the seat's score. Bots keeping a seat for a disconnected person are only used
-  if there's no other bot. Requests are only possible while at least one seat is played by a bot.
+  decline prompt. When approved, the newcomer fills an **empty seat** if there is one, otherwise replaces
+  **a random bot** straight away (mid-hand included), taking over its tiles and the seat's score. Bots
+  keeping a seat for someone who was replaced are only used if there's no other bot. Requests are only
+  possible while at least one seat is empty or played by a bot.
 - **While paused in the lobby (or at a wind break):** a watcher picks which bot to take over from. No
   approval is needed.

@@ -17,9 +17,10 @@ npm run typecheck   # tsc in every package
 In development, Vite proxies `/ws` to the server, so the client always connects to the same origin.
 `GET http://localhost:8787/health` is a quick check that the server is running.
 
-To try the table on your own: create a room, sit down, click **Fill empty seats with bots**, then **Deal**.
-The bots play random legal moves (including random claims). Open a second browser profile to play as two
-people.
+To try the table on your own: create a room, sit down, click **Fill empty seats with bots**, then **Start
+game**. The bots play random legal moves (including random claims). Open a second browser profile (or a
+private window) to play as two people and try the host prompts. `BOT_DELAY_MS=100 npm run dev` makes the
+bots quick.
 
 ## Repo layout
 
@@ -36,6 +37,7 @@ packages/
     hand.ts           the hand state machine: startHand, legalActions, applyAction, closeClaimWindow
     view.ts           projectView / projectEvents: what each seat may see
     scoring.ts        flat Chicken Hand payments
+    game.ts           a whole game: dealer rotation, winds, running seat scores, hand history
     testing.ts        stackWall: build an exact wall from hand notation
     clone.ts          deep copy for plain data (keeps the engine free of environment APIs)
     *.test.ts         tests sit next to the code they test
@@ -43,13 +45,14 @@ packages/
   server/src/         Node + ws server
     app.ts            HTTP + WebSocket wiring, message routing
     registry.ts       rooms by code, idle sweep
-    room.ts           one table: lobby, seats, the hand, stale-action checks, claim timer
-    controllers.ts    seat controllers: human, policy-driven (autopilot, random, future bots)
+    room.ts           one table: host, seats, the game and hand, phases, timers (claim, idle, ready)
+    controllers.ts    seat controllers: human, policy-driven bots (random, future smarter ones)
     index.ts          entry point (PORT, default 8787)
   client/src/         React + Vite app
     net/              socket.ts (reconnecting WebSocket), store.ts (Zustand: session, lobby, snapshot)
-    screens/          JoinScreen, LobbyScreen
-    table/            Table (layout, ponds, centre, action bar, end of hand), MyHand, Melds, useTableControls
+    net/room.ts       "me / my seat / host / names" derived from the lobby message
+    screens/          JoinScreen, LobbyScreen, WindBreakScreen, CelebrationScreen, Scoreboard
+    table/            Table (layout, ponds, centre, action bar), HandOver, HostPrompts, MyHand, Melds, useTableControls
     hand/             arrangement.ts (order + private groups), claimOptions.ts (ways to use a claimed tile)
     Tile.tsx          the only component that draws a tile
 package.json          npm workspaces + root scripts

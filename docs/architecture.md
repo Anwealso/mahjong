@@ -79,14 +79,13 @@ interface SeatController {
 ```
 
 - `HumanController` forwards updates over that player's WebSocket and passes incoming actions to the room.
-- `PolicyController` runs a strategy function (a `Policy`) in the same process: the autopilot, the
-  random-move bots from the lobby's "Fill empty seats with bots" button, and future smarter bots. It receives the same
-  `PlayerView` as a human, so a bot can't cheat by looking at hidden tiles, and its actions go through the
-  same validation path.
-- The autopilot policy is used when a human disconnects. It passes on claims and discards the tile it
-  just drew after a short delay, so the game never stalls.
+- `PolicyController` runs a strategy function (a `Policy`) in the same process: today the random-move
+  bots, later smarter ones. It receives the same `PlayerView` as a human, so a bot can't cheat by looking
+  at hidden tiles, and its actions go through the same validation path.
+- A seated person who's offline has no controller: their decisions wait until they return or the host
+  hands the seat to a bot ([D23](decisions.md#d23-host-seat-owned-scores-and-handling-dropouts)).
 
-Swapping a seat between human, autopilot, and bot is just replacing its controller.
+Swapping a seat between a person and a bot is just replacing its controller.
 
 ## Engine design
 
@@ -184,30 +183,40 @@ payment from [rules.md](rules.md). It's isolated so faan scoring can replace it 
 Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (rooms by code),
 `room.ts` (one table), `controllers.ts` (who plays each seat).
 
-- **Room**: a 4-letter code, members, 4 seats, the current `HandState`, a `stateVersion`, the claim timer,
-  and a controller per seat. Every change goes through the room one message at a time, which is what
-  makes claims first come, first served.
-- **Members**: anyone in the room. Seated members play; others just see the lobby (spectating could come
-  later). Seats can't change during a hand. A hand starts when all four seats are filled and someone
-  sends `startHand`.
+- **Room**: a 4-letter code, members, a **host**, 4 seats, the **game** (engine `GameState`: dealer,
+  prevailing wind, running seat scores, hand history), the current `HandState`, a `stateVersion`, timers,
+  and a controller per seat. Every change goes through the room one message at a time, which is what makes
+  claims first come, first served.
+- **Room phases** (sent to everyone in the `lobby` message): `lobby` (no game) → `hand` → `handOver`
+  (ready-up, 10 s countdown) or `windBreak` (unanimous continue vote) → … ; `paused` (game held in the
+  lobby, from "Return to lobby" or a cancelled hand); `gameOver` (nobody left seated at a wind break). The
+  rules for each are in [game-flow.md](game-flow.md).
+- **Members**: anyone in the room. Seated members play; others watch from the lobby and can ask to play.
+  The room creator hosts; hosting passes to the longest-present connected person if the host goes.
+- **Seats**: scores belong to seats. A bot is a member with `bot: true`. When a bot replaces someone who
+  disconnected or went idle, the seat is **reserved** for them: they take it back automatically on
+  reconnecting (disconnected) or with a click (idle).
+- **Seat issues**: during `hand`/`handOver` a seat is `empty` (its player left), `offline`, or `idle` (no
+  move for 60 s on their decision). The host is prompted; the ready countdown stops while any seat has an
+  issue. There's no autopilot: an absent player's decision just waits.
 - **Stale-action protection**: every action quotes the `stateVersion` it was made against, and mismatches
   are rejected with `staleState`. For example, clicking "Pung" just after someone else claimed gets
   rejected instead of being applied to the wrong state. The version goes up on every visible change,
   **except a pass inside a claim window**. A pass is only sent back to the player who passed, so one
   player passing never makes another player's pending claim stale.
-- **Claim timer**: when a claim window opens, the room starts a 5-second timer that remembers the version
-  it belongs to. If the window is still open when it fires, the room calls `closeClaimWindow`. State
-  messages include `claimMsLeft` for the countdown.
+- **Timers**: the claim timer (5 s, remembers the version it belongs to, then `closeClaimWindow`), the
+  idle timer (60 s on the deciding seat), the ready countdown (10 s between hands), and the wind-break
+  removal delay (30 s). State messages include `claimMsLeft`; lobby messages include `readyMsLeft` and
+  `voteRemoveMsLeft`.
 - **Seat controllers**: `HumanController` forwards updates to a connection. `PolicyController` runs a
   `Policy` (a function from view + legal actions to an action) in-process after a short delay.
-  `autopilotPolicy` (pass on claims, discard the drawn tile) covers disconnected players; `randomPolicy`
-  plays the bots; future bots are just smarter policies.
-- **Bots**: `addBots` fills every empty seat with a bot member (`bot: true`, never connected, named
-  "Bot N") that plays `randomPolicy` after `botDelayMs` (1.5 s). Seats are only filled between hands. A
-  person taking a bot's seat removes the bot.
+  `randomPolicy` plays the bots; future bots are just smarter policies.
+- **Bots**: the host's `addBots` fills every empty seat with a bot member (never connected, named "Bot N")
+  that plays `randomPolicy` after `botDelayMs` (1.5 s; `BOT_DELAY_MS` overrides it locally). Bots also
+  take over from people who leave or are replaced. A person taking a bot's seat removes the bot.
 - **Sessions & reconnect**: `welcome` gives each member a random `sessionToken`, which the client keeps in
-  `localStorage`. Joining again with that token reclaims the same member and seat: the autopilot hands
-  back control and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
+  `localStorage`. Joining again with that token reclaims the same member and seat (from the bot keeping it,
+  if the host had replaced them) and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
   connection wins.
 - **Lifecycle**: rooms with nobody connected and no activity for 30 minutes are swept away every minute.
   A server restart loses in-progress games in v1. Persisting `seed + action log` to SQLite would make them
@@ -223,28 +232,35 @@ identical to the engine's `Action` type.
 Client → server (all validated):
 
 ```ts
-{ t: "createRoom", name }                           // create a room and join it
+{ t: "createRoom", name }                           // create a room, join it, and host it
 { t: "join", room, name, sessionToken? }            // join, or rejoin as the same member with a token
-{ t: "takeSeat", seat: 0|1|2|3 } | { t: "leaveSeat" }   // taking a bot's seat replaces the bot
-{ t: "addBots" }                                    // fill empty seats with random-move bots
-{ t: "startHand" }                                  // needs 4 seated players and no hand in progress
+{ t: "takeSeat", seat } | { t: "leaveSeat" }        // rules depend on the room phase (game-flow.md)
+{ t: "requestSeat" }                                // watcher, mid-game: ask the host to play
+{ t: "ready" } | { t: "returnToLobby" }             // between hands
+{ t: "voteContinue" }                               // at a wind break (leaving = leaveSeat)
 { t: "action", action: Action, stateVersion }
+// host only:
+{ t: "addBots" } | { t: "removeMember", memberId } | { t: "replaceWithBot", seat } | { t: "cancelHand" }
+{ t: "answerRequest", memberId, approve } | { t: "startGame" } | { t: "resumeGame" } | { t: "newGame" }
 ```
 
 Server → client:
 
 ```ts
 { t: "welcome", room, memberId, sessionToken }
-{ t: "lobby", room, members: { id, name, seat, connected, bot }[], seats, handInProgress }
+{ t: "lobby", room, hostId, phase, members: { id, name, seat, connected, bot }[], seats,
+  seatInfo: { issue, reservedFor, ready, voted }[], game: GameState | null,
+  readyMsLeft, voteRemoveMsLeft, requests: { id, name }[] }
 { t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
 { t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |
-                                // notEnoughPlayers | notSeated | staleState | illegalAction
+                                // notEnoughPlayers | notSeated | staleState | illegalAction | notHost | notAllowed
 ```
 
 ### Server tests
 
-- `room.test.ts`: the room with fake connections and stacked walls (lobby rules, per-seat views, stale
-  actions, a pass not making other claims stale, the claim timer, the autopilot, reconnecting, bots).
+- `room.test.ts`: the room with fake connections and stacked walls: the host and lobby rules, bots,
+  per-seat views, stale actions, the claim timer, dropouts (waiting, replacing, reclaiming, cancelling),
+  join requests, readying up and the countdown, pausing, wind breaks, and the end of the game.
 - `server.test.ts`: real sockets: a health check, malformed messages, and four random players playing
   five full hands. Any error other than `staleState` fails the test.
 
@@ -257,8 +273,13 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   `sessionToken`) is kept in `localStorage`, so a refresh rejoins the same seat; the room code also goes in
   the URL hash (`/#ABCD`) so the link can be shared. A `staleState` error shows "Too late: someone else got
   there first".
-- **Screens**: **Join** (name + room code, or create a room) → **Lobby** (seats, "Fill empty seats with
-  bots", deal) → **Table**. A new deal switches to the table; "Back to lobby" after a hand returns.
+- **Screens** follow the room phase (`App.tsx`): **Join** → **Lobby** (before a game, while paused, and for
+  watchers during a game) → **Table** (seated, during `hand`/`handOver`) → **Wind break** (after the last
+  hand's result) → **Celebration** (game over, or after leaving at a wind break). `net/room.ts` derives
+  "me / my seat / am I host / names" from the lobby message.
+- **Table extras for milestone 5**: running seat scores next to names, "Round N · 東", the end-of-hand
+  panel (payments, totals, ready marks, countdown, Ready / Return to lobby), host prompts for seat issues
+  and join requests (`table/HostPrompts.tsx`), and a Leave table button.
 - **Table layout**: rotated so you're at the bottom; the next player (in turn order) is on your right,
   opposite across the top, previous on your left. Each player's discards sit in front of them in the
   centre, with the latest discard outlined. The centre shows the prevailing wind, the wall count, and the

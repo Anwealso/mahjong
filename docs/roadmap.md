@@ -8,8 +8,8 @@ Milestones in build order. Each one should end with passing tests and something 
 | 2 | Engine: hand state machine | ✅ Done |
 | 3 | Server + protocol | ✅ Done |
 | 4 | Client table UI | ✅ Done |
-| 5 | Full game (multiple hands) | ⏭ Next |
-| 6 | Resilience + deploy | — |
+| 5 | Full game (multiple hands) | ✅ Done |
+| 6 | Resilience + deploy | ⏭ Next |
 | 7 | Later / nice-to-haves | — |
 
 ## 1. Engine core ✅
@@ -34,7 +34,7 @@ Milestones in build order. Each one should end with passing tests and something 
 - `packages/protocol`: zod schemas and types for every message.
 - Room registry, 4-letter room codes, lobby, choosing seats, starting a game.
 - `SeatController` interface; `HumanController`, plus `PolicyController` running `autopilotPolicy` (for
-  disconnected players) or `randomPolicy`. Future bots are new policies.
+  disconnected players; removed in milestone 5) or `randomPolicy`. Future bots are new policies.
 - Claim timer, `stateVersion` check against stale actions, session tokens and reconnecting.
 - **Integration test:** 4 random players play full hands over real WebSockets.
 - Not yet: dealer rotation and running scores (milestone 5). Every hand is currently dealt with seat 0 as
@@ -55,19 +55,28 @@ Milestones in build order. Each one should end with passing tests and something 
 - End-of-hand panel with the result, payments and every hand revealed.
 - Not yet: animations, sounds, SVG tiles (milestone 7); dealer rotation and running scores (milestone 5).
 
-## 5. Full game
+## 5. Full game ✅
 
-- Dealer rotation, prevailing-wind rounds, running scores, end-of-hand and end-of-game summaries.
+Specified in [game-flow.md](game-flow.md) ([D22](decisions.md#d22-open-ended-games-wind-breaks-and-unanimous-continue-votes), [D23](decisions.md#d23-host-seat-owned-scores-and-handling-dropouts)).
+
+- Engine `GameState`: random first dealer, dealer rotation, prevailing winds (open-ended), running seat
+  scores, hand history.
+- A host who starts, pauses/resumes, removes people, fills seats with bots, and handles dropouts and join
+  requests. No autopilot.
+- Ready-up between hands with a 10 s countdown; Return to lobby to pause.
+- Wind break: podium for the wind, leaderboard, unanimous vote to continue, leavers replaced by bots.
+- Celebration screen with confetti for 1st and 2nd.
 
 ## 6. Resilience + deploy
 
-- Reconnect with a session token; autopilot while someone's disconnected.
+- Reconnecting with a session token is done (milestones 3 and 5).
 - Clean up abandoned rooms.
 - Production build: the server serves the built client. Deploy to Fly.io or Railway ([D8](decisions.md#d8-hosting-one-service-serving-the-client-and-the-websocket-on-the-same-origin)).
 
 ## 7. Later
 
-- Real server-side bots ([D6](decisions.md#d6-seat-controllers-so-server-side-bots-can-be-added-later)).
+- Smarter server-side bots ([D6](decisions.md#d6-seat-controllers-so-server-side-bots-can-be-added-later)). Random bots almost never win, so
+  bot-heavy tables draw a lot and winds drag on.
 - SVG tile art, sounds, animations, chat.
 - Game history and replays (persist `seed + action log` to SQLite).
 - Optional faan scoring, flowers, and other `RuleConfig` variants.

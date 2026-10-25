@@ -21,5 +21,5 @@ over a voice call. Desktop only for now.
 - **Deterministic engine:** `seed + action log` replays any game.
 - **Bots later:** seats are driven by `SeatController`s, so a server-side bot is a new controller, not a
   refactor.
-- **Status:** milestones 1–4 (engine, hand logic, server, client table) are done: you can play full hands
-  in the browser, with bots filling empty seats. Next up is the full game (dealer rotation, running scores).
+- **Status:** milestones 1–5 are done: full open-ended games in the browser with a host, running seat
+  scores, wind breaks, and bots filling in. Next up is resilience and deployment.

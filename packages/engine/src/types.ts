@@ -30,18 +30,26 @@ export interface PlayerState {
   discards: TileId[];
 }
 
+/**
+ * Set-forming actions name the exact hand tiles the player selected. The engine checks that they hold
+ * them and that they form the set; it never picks tiles on the player's behalf.
+ */
 export type Action =
   // On your turn
   | { type: "discard"; tile: TileId }
   | { type: "selfDrawWin" }
-  | { type: "concealedKong"; kind: TileKind }
+  /** All four tiles of one kind from your hand. */
+  | { type: "concealedKong"; tiles: TileId[] }
+  /** The fourth tile, added to one of your exposed pungs. */
   | { type: "addedKong"; tile: TileId }
   // In a claim window
   | { type: "pass" }
   | { type: "win" }
-  | { type: "pung" }
-  | { type: "kong" }
-  /** `tiles` are the two hand tiles that complete the run with the discard. */
+  /** Two hand tiles matching the discard. */
+  | { type: "pung"; tiles: [TileId, TileId] }
+  /** Three hand tiles matching the discard. */
+  | { type: "kong"; tiles: [TileId, TileId, TileId] }
+  /** Two hand tiles that complete a run with the discard. */
   | { type: "chow"; tiles: [TileId, TileId] };
 
 /** What opened the claim window: a normal discard, or a tile added to a pung (only claimable to rob the kong). */
@@ -51,19 +59,19 @@ export type Phase =
   /** `seat` must discard (or declare a kong / self-drawn win). `drew` = they got here by drawing, not by claiming. */
   | { kind: "awaitDiscard"; seat: Seat; drew: boolean }
   /**
-   * Other seats may claim `tile`. `responses[seat]` is null while that seat is still deciding.
-   * The source seat and seats with nothing to claim are pre-filled with a pass.
+   * Other seats may claim `tile`; the first valid claim takes it. `passed[seat]` is true once that seat
+   * has passed. The source seat and seats with nothing to claim start out passed.
    */
-  | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; responses: (Action | null)[] }
+  | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; passed: boolean[] }
   | { kind: "handOver"; result: HandResult };
 
 export type HandResult =
   | {
       kind: "win";
-      winners: Seat[];
+      winner: Seat;
       tile: TileId;
       selfDraw: boolean;
-      /** Who paid for a discard win: the discarder, or the player whose kong was robbed. Null for self-draw. */
+      /** Who pays for a discard win: the discarder, or the player whose kong was robbed. Null for self-draw. */
       from: Seat | null;
       robbedKong: boolean;
       /** Point change per seat; sums to 0. */

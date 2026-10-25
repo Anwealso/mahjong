@@ -59,11 +59,14 @@ export function startHand(options: StartHandOptions): { state: HandState; events
   return { state, events: [{ type: "dealt" }] };
 }
 
-/** Every action `seat` may take right now. Empty if it's not their decision. */
+/**
+ * Every action `seat` may take right now; empty if it's not their decision. Set-forming options list one
+ * example choice of tiles: `applyAction` also accepts any other hand tiles of the same kinds.
+ */
 export function legalActions(state: HandState, seat: Seat): Action[] {
   const { phase } = state;
   if (phase.kind === "awaitDiscard") return phase.seat === seat ? turnOptions(state, seat, phase.drew) : [];
-  if (phase.kind === "claimWindow") return phase.responses[seat] === null ? claimOptions(state, seat, phase) : [];
+  if (phase.kind === "claimWindow") return phase.passed[seat] ? [] : claimOptions(state, seat, phase);
   return [];
 }
 
@@ -76,7 +79,9 @@ function turnOptions(state: HandState, seat: Seat, drew: boolean): Action[] {
 
   // A kong needs a replacement tile, so none once the wall is empty.
   if (state.wall.length > 0) {
-    counts.forEach((n, kind) => n === 4 && actions.push({ type: "concealedKong", kind }));
+    counts.forEach((n, kind) => {
+      if (n === 4) actions.push({ type: "concealedKong", tiles: player.hand.filter((t) => kindOf(t) === kind) });
+    });
     for (const tile of player.hand) {
       if (player.melds.some((m) => m.type === "pung" && kindOf(m.tiles[0]!) === kindOf(tile))) {
         actions.push({ type: "addedKong", tile });
@@ -96,6 +101,7 @@ function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action
   const player = state.players[seat]!;
   const kind = kindOf(window.tile);
   const counts = countTiles(player.hand);
+  const ofKind = (k: TileKind) => player.hand.filter((t) => kindOf(t) === k);
   const actions: Action[] = [];
 
   const withTile = [...counts];
@@ -104,14 +110,15 @@ function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action
 
   // A tile added to a pung can only be claimed to win (robbing the kong).
   if (window.source === "discard") {
-    if (counts[kind]! >= 2) actions.push({ type: "pung" });
-    if (counts[kind]! >= 3 && state.wall.length > 0) actions.push({ type: "kong" });
+    const same = ofKind(kind);
+    if (same.length >= 2) actions.push({ type: "pung", tiles: [same[0]!, same[1]!] });
+    if (same.length >= 3 && state.wall.length > 0) actions.push({ type: "kong", tiles: [same[0]!, same[1]!, same[2]!] });
     if (seat === nextSeat(window.from) && isSuited(kind)) {
       for (let start = Math.max(0, kind - 2); start <= kind; start++) {
         if (!canStartChow(start)) continue;
         const [a, b] = [start, start + 1, start + 2].filter((k) => k !== kind) as [TileKind, TileKind];
-        const ta = player.hand.find((t) => kindOf(t) === a);
-        const tb = player.hand.find((t) => kindOf(t) === b);
+        const ta = ofKind(a)[0];
+        const tb = ofKind(b)[0];
         if (ta !== undefined && tb !== undefined) actions.push({ type: "chow", tiles: [ta, tb] });
       }
     }
@@ -121,26 +128,39 @@ function claimOptions(state: HandState, seat: Seat, window: ClaimWindow): Action
   return actions;
 }
 
-/** Identity of an action for legality checks, independent of object key order. */
+/**
+ * Identity of an action for legality checks. Set-forming actions are identified by the kinds of their
+ * tiles, so any equivalent selection of hand tiles matches the listed option.
+ */
 function actionKey(action: Action): string {
   switch (action.type) {
     case "discard":
     case "addedKong":
       return `${action.type}:${action.tile}`;
     case "concealedKong":
-      return `${action.type}:${action.kind}`;
+    case "pung":
+    case "kong":
     case "chow":
-      return `chow:${[...action.tiles].sort((x, y) => x - y).join(",")}`;
+      return `${action.type}:${action.tiles.map(kindOf).sort((x, y) => x - y).join(",")}`;
     default:
       return action.type;
   }
 }
 
-/** Apply one seat's action. Pure: `prev` is never modified. Only actions from `legalActions` are accepted. */
+/** The selected tiles are distinct and all in the player's hand. */
+function holdsSelection(hand: readonly TileId[], action: Action): boolean {
+  if (!("tiles" in action)) return true;
+  return new Set(action.tiles).size === action.tiles.length && action.tiles.every((t) => hand.includes(t));
+}
+
+/** Apply one seat's action. Pure: `prev` is never modified. Only actions matching `legalActions` are accepted. */
 export function applyAction(prev: HandState, seat: Seat, action: Action): ApplyResult {
   const key = actionKey(action);
   if (!legalActions(prev, seat).some((a) => actionKey(a) === key)) {
     return { ok: false, error: `Illegal action ${key} for seat ${seat} in phase ${prev.phase.kind}` };
+  }
+  if (!holdsSelection(prev.players[seat]!.hand, action)) {
+    return { ok: false, error: `Seat ${seat} doesn't hold the selected tiles` };
   }
 
   const state = clone(prev);
@@ -149,8 +169,10 @@ export function applyAction(prev: HandState, seat: Seat, action: Action): ApplyR
   const player = state.players[seat]!;
 
   if (phase.kind === "claimWindow") {
-    phase.responses[seat] = action;
-    if (phase.responses.every((r) => r !== null)) resolveClaims(state, events);
+    if (action.type === "pass") {
+      phase.passed[seat] = true;
+      if (phase.passed.every(Boolean)) noClaim(state, events);
+    } else claim(state, events, seat, action);
     return { ok: true, state, events };
   }
 
@@ -163,12 +185,11 @@ export function applyAction(prev: HandState, seat: Seat, action: Action): ApplyR
       openClaimWindow(state, events, "discard", seat, action.tile);
       break;
     case "selfDrawWin":
-      finishWin(state, events, [seat], state.lastDrawn!, true, null, false);
+      finishWin(state, events, seat, state.lastDrawn!, true, null, false);
       break;
     case "concealedKong": {
-      const tiles = player.hand.filter((t) => kindOf(t) === action.kind);
-      removeTiles(player.hand, tiles);
-      const meld: Meld = { type: "kong", tiles, concealed: true, claimed: null };
+      removeTiles(player.hand, action.tiles);
+      const meld: Meld = { type: "kong", tiles: sortTiles(action.tiles), concealed: true, claimed: null };
       player.melds.push(meld);
       events.push({ type: "melded", seat, meld });
       draw(state, events, seat, true);
@@ -185,89 +206,70 @@ export function applyAction(prev: HandState, seat: Seat, action: Action): ApplyR
 }
 
 /**
- * Close the claim window now: every seat that hasn't answered passes. The server calls this when the
- * claim timer runs out.
+ * Close the claim window now: everyone who hasn't claimed passes. The server calls this when the claim
+ * timer runs out.
  */
 export function closeClaimWindow(prev: HandState): ApplyResult {
   if (prev.phase.kind !== "claimWindow") return { ok: false, error: "No claim window is open" };
   const state = clone(prev);
-  const phase = state.phase as ClaimWindow;
-  phase.responses = phase.responses.map((r) => r ?? { type: "pass" });
   const events: GameEvent[] = [];
-  resolveClaims(state, events);
+  noClaim(state, events);
   return { ok: true, state, events };
 }
 
-/** Seats that still owe an answer in the current claim window. */
+/** Seats that can still claim (or pass) in the current claim window. */
 export function pendingClaimants(state: HandState): Seat[] {
   const { phase } = state;
-  return phase.kind === "claimWindow" ? SEATS.filter((s) => phase.responses[s] === null) : [];
+  return phase.kind === "claimWindow" ? SEATS.filter((s) => !phase.passed[s]) : [];
 }
 
 function openClaimWindow(state: HandState, events: GameEvent[], source: ClaimSource, from: Seat, tile: TileId) {
-  const window: ClaimWindow = { kind: "claimWindow", source, from, tile, responses: [null, null, null, null] };
+  const window: ClaimWindow = { kind: "claimWindow", source, from, tile, passed: [false, false, false, false] };
   state.phase = window;
   // Seats with nothing to claim pass immediately, so nobody waits on them.
-  for (const s of SEATS) if (claimOptions(state, s, window).length === 0) window.responses[s] = { type: "pass" };
+  for (const s of SEATS) if (claimOptions(state, s, window).length === 0) window.passed[s] = true;
 
-  if (window.responses.every((r) => r !== null)) resolveClaims(state, events);
+  if (window.passed.every(Boolean)) noClaim(state, events);
   else events.push({ type: "claimWindowOpened", source, from, tile });
 }
 
-/** Everyone has answered: apply the highest-priority claim (win > pung/kong > chow), or move on. */
-function resolveClaims(state: HandState, events: GameEvent[]) {
-  const window = state.phase as ClaimWindow;
-  const { from, tile, responses } = window;
-  // Turn order after the claimed tile's owner: also the head-bump order.
-  const order = [1, 2, 3].map((i) => ((from + i) % 4) as Seat);
-  const chose = (s: Seat, type: Action["type"]) => responses[s]!.type === type;
+/** First come, first served: a valid claim takes the tile immediately and closes the window. */
+function claim(state: HandState, events: GameEvent[], seat: Seat, action: Action) {
+  const { source, from, tile } = state.phase as ClaimWindow;
+  const player = state.players[seat]!;
+  if (source === "discard") state.players[from]!.discards.pop();
 
-  const winners = order.filter((s) => chose(s, "win"));
-  if (winners.length > 0) {
-    const chosen = state.rules.multipleWinners === "headBump" ? [winners[0]!] : winners;
-    if (window.source === "discard") state.players[from]!.discards.pop();
-    // The tile joins the (first) winner's hand so every tile stays accounted for.
-    state.players[chosen[0]!]!.hand = sortTiles([...state.players[chosen[0]!]!.hand, tile]);
-    finishWin(state, events, chosen, tile, false, from, window.source === "addedKong");
+  if (action.type === "win") {
+    player.hand = sortTiles([...player.hand, tile]);
+    finishWin(state, events, seat, tile, false, from, source === "addedKong");
     return;
   }
-
-  if (window.source === "addedKong") {
-    completeAddedKong(state, events, from, tile);
-    return;
+  if (action.type !== "pung" && action.type !== "kong" && action.type !== "chow") {
+    throw new Error(`Not a claim: ${action.type}`);
   }
 
-  const setClaimer = order.find((s) => chose(s, "pung") || chose(s, "kong"));
-  const chowClaimer = order.find((s) => chose(s, "chow"));
-  const claimer = setClaimer ?? chowClaimer;
-  if (claimer === undefined) {
-    draw(state, events, nextSeat(from), false);
-    return;
-  }
-
-  const action = responses[claimer]!;
-  const player = state.players[claimer]!;
-  state.players[from]!.discards.pop();
-
-  let fromHand: TileId[];
-  if (action.type === "chow") fromHand = [...action.tiles];
-  else fromHand = player.hand.filter((t) => kindOf(t) === kindOf(tile)).slice(0, action.type === "kong" ? 3 : 2);
-  removeTiles(player.hand, fromHand);
-
+  removeTiles(player.hand, action.tiles);
   const meld: Meld = {
-    type: action.type === "chow" ? "chow" : action.type === "kong" ? "kong" : "pung",
-    tiles: sortTiles([...fromHand, tile]),
+    type: action.type,
+    tiles: sortTiles([...action.tiles, tile]),
     concealed: false,
     claimed: { tile, from },
   };
   player.melds.push(meld);
-  events.push({ type: "melded", seat: claimer, meld });
+  events.push({ type: "melded", seat, meld });
 
-  if (meld.type === "kong") draw(state, events, claimer, true);
+  if (meld.type === "kong") draw(state, events, seat, true);
   else {
-    state.phase = { kind: "awaitDiscard", seat: claimer, drew: false };
+    state.phase = { kind: "awaitDiscard", seat, drew: false };
     state.lastDrawn = null;
   }
+}
+
+/** Nobody claimed: an added kong completes; a discard stays in the pond and the next player draws. */
+function noClaim(state: HandState, events: GameEvent[]) {
+  const { source, from, tile } = state.phase as ClaimWindow;
+  if (source === "addedKong") completeAddedKong(state, events, from, tile);
+  else draw(state, events, nextSeat(from), false);
 }
 
 function completeAddedKong(state: HandState, events: GameEvent[], seat: Seat, tile: TileId) {
@@ -298,7 +300,7 @@ function draw(state: HandState, events: GameEvent[], seat: Seat, replacement: bo
 function finishWin(
   state: HandState,
   events: GameEvent[],
-  winners: Seat[],
+  winner: Seat,
   tile: TileId,
   selfDraw: boolean,
   from: Seat | null,
@@ -306,12 +308,12 @@ function finishWin(
 ) {
   const result = {
     kind: "win" as const,
-    winners,
+    winner,
     tile,
     selfDraw,
     from,
     robbedKong,
-    payments: scoreWin(winners, selfDraw, from),
+    payments: scoreWin(winner, selfDraw, from),
   };
   state.phase = { kind: "handOver", result };
   events.push({ type: "handOver", result });

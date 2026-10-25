@@ -23,7 +23,7 @@ export interface PublicPlayer {
 
 export type ViewPhase =
   | { kind: "awaitDiscard"; seat: Seat }
-  /** `awaitingYou`: you still owe an answer. Other seats' answers are never revealed. */
+  /** `awaitingYou`: you can still claim or pass. Other seats' answers are never revealed. */
   | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; awaitingYou: boolean }
   /** At the end of a hand every hand is revealed. */
   | { kind: "handOver"; result: HandResult; hands: TileId[][] };
@@ -52,7 +52,7 @@ export function projectView(state: HandState, seat: Seat): PlayerView {
       source: phase.source,
       from: phase.from,
       tile: phase.tile,
-      awaitingYou: phase.responses[seat] === null,
+      awaitingYou: !phase.passed[seat],
     };
   } else viewPhase = { kind: "handOver", result: phase.result, hands: state.players.map((p) => [...p.hand]) };
 

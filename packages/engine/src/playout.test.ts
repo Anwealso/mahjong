@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { applyAction, closeClaimWindow, legalActions, startHand } from "./hand";
-import { createRng, type Rng } from "./rng";
+import { createRng, shuffle, type Rng } from "./rng";
 import { DEFAULT_RULES, type RuleConfig } from "./rules";
-import { NUM_TILES, type TileId } from "./tiles";
+import { kindOf, NUM_TILES, type TileId } from "./tiles";
 import { SEATS, type Action, type HandState, type Seat } from "./types";
 import { projectView } from "./view";
 
@@ -18,11 +18,19 @@ function assert(condition: boolean, message: () => string): asserts condition {
 
 const pick = <T,>(items: readonly T[], rng: Rng): T => items[Math.floor(rng() * items.length)]!;
 
-function chooseAction(actions: Action[], rng: Rng): Action {
+function chooseAction(actions: Action[], hand: readonly TileId[], rng: Rng): Action {
   // Take wins most of the time so hands actually end in wins, otherwise play randomly.
   const win = actions.find((a) => a.type === "win" || a.type === "selfDrawWin");
   if (win && rng() < 0.7) return win;
-  return pick(actions, rng);
+  const action = pick(actions, rng);
+  if (action.type !== "pung" && action.type !== "kong" && action.type !== "chow") return action;
+  // Select a random equivalent set of hand tiles, like a player clicking whichever copies they like.
+  const unused = shuffle([...hand], rng);
+  const tiles = action.tiles.map((t) => {
+    const i = unused.findIndex((u) => kindOf(u) === kindOf(t));
+    return unused.splice(i, 1)[0]!;
+  });
+  return { ...action, tiles } as Action;
 }
 
 /** Every tile is in exactly one place. */
@@ -99,7 +107,7 @@ function playHand(seed: number, rules: RuleConfig, stats: Stats) {
     const actors = SEATS.filter((s) => legalActions(state, s).length > 0);
     assert(actors.length > 0, () => `seed ${seed}: nobody can act in ${state.phase.kind}`);
     const seat = pick(actors, rng);
-    const result = applyAction(state, seat, chooseAction(legalActions(state, seat), rng));
+    const result = applyAction(state, seat, chooseAction(legalActions(state, seat), state.players[seat]!.hand, rng));
     if (!result.ok) throw new Error(`seed ${seed}: ${result.error}`);
     for (const e of result.events) if (e.type === "melded") stats.melds[e.meld.type] = (stats.melds[e.meld.type] ?? 0) + 1;
     state = result.state;
@@ -135,7 +143,7 @@ describe("random playouts", () => {
 
   it("every optional rule on: invariants still hold", () => {
     const stats = run(
-      { thirteenOrphans: true, sevenPairs: true, robbingKong: true, multipleWinners: "all" },
+      { thirteenOrphans: true, sevenPairs: true, robbingKong: true },
       400,
     );
     expect(stats.wins + stats.draws).toBe(400);

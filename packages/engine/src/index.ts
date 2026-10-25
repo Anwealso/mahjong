@@ -6,5 +6,6 @@ export * from "./win";
 export * from "./types";
 export * from "./scoring";
 export * from "./hand";
+export * from "./game";
 export * from "./view";
 export * from "./testing";

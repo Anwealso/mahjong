@@ -146,6 +146,25 @@ describe("server", () => {
     c.close();
   });
 
+  it("closes a room when its host leaves and no other person is in it", async () => {
+    const [host, guest] = await Promise.all([Client.connect(server.port), Client.connect(server.port)]);
+    host.send({ t: "createRoom", name: "Ann" });
+    const { room } = await host.next("welcome");
+    host.send({ t: "addBots" });
+    await host.next("lobby", (m) => m.seats.every((s) => s !== null));
+    guest.send({ t: "join", room, name: "Ben" });
+    const { memberId: ben } = await guest.next("welcome");
+    host.send({ t: "leaveRoom" });
+    expect((await guest.next("lobby", (m) => m.hostId === ben)).members.map((m) => m.name)).not.toContain("Ann");
+    guest.send({ t: "leaveRoom" });
+    const health = async () => ((await (await fetch(`http://localhost:${server.port}/health`)).json()) as { rooms: number }).rooms;
+    await expect.poll(health).toBe(0);
+    guest.send({ t: "join", room, name: "Ben" });
+    expect((await guest.next("error")).code).toBe("noSuchRoom");
+    host.close();
+    guest.close();
+  });
+
   it("rejects bad messages and unknown rooms", async () => {
     const c = await Client.connect(server.port);
     c.send("not json");

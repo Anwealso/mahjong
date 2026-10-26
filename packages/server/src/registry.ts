@@ -28,6 +28,12 @@ export class RoomRegistry {
     return this.rooms.get(code.toUpperCase());
   }
 
+  /** Close a room straight away (its last person left). */
+  remove(code: string) {
+    this.rooms.get(code)?.dispose();
+    this.rooms.delete(code);
+  }
+
   get size(): number {
     return this.rooms.size;
   }

@@ -3,6 +3,36 @@
 **Status: accepted (milestone 7)** as [D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread).
 The ✅ choices and the answers to the questions at the end are the plan being built.
 
+## What was built (results)
+
+All three levels are live ([D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread), amended by
+[D27](decisions.md#d27-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)). One arena run, 2,000 hands, one of each level at the
+table, seats rotating:
+
+| Level | Win % | Deal-ins | Points / hand |
+|---|---|---|---|
+| Hard | 44.2% | 222 | +0.41 |
+| Medium | 38.6% | 297 | +0.28 |
+| Easy | 17.1% | 443 | −0.17 |
+| Random | 0% | 537 | −0.52 |
+
+Only 2 of 2,000 hands were draws (random bots drew almost every hand).
+
+Two changes from the plan below, both driven by the arena:
+
+- **Hard's defence is narrow.** Playing safe in most situations made Hard *worse* than Medium (Chicken Hand
+  hands are fast, so caution mostly costs speed). What helped: folding when far from ready and someone is
+  one set from winning, and a light preference for safe tiles when one tile from ready. Against three
+  Mediums on fresh deals it scores +0.034 points/hand more than a Medium in the same seat, with 14% fewer
+  deal-ins.
+- **No Monte Carlo lookahead and no worker thread.** The lookahead is built (`lookahead.ts`) but off: on
+  2,400 paired hands it did no better than defence alone (+5 vs +31 points, within noise) at ~55 ms a
+  decision, because its simplified playouts are too crude. Without it Hard decides in under a millisecond,
+  so every level runs in-process and the worker thread isn't needed. Better playouts are the obvious next
+  step if Hard ever needs to be stronger.
+
+The rest of this page is the original plan.
+
 ## Where we are
 
 - Bots are `Policy` functions, `(view: PlayerView, legalActions: Action[]) => Action`, run by a

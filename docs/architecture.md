@@ -29,12 +29,14 @@ The game rules (Hong Kong Chicken Hand, v1 defaults and configurable variants) a
 ```
 packages/
   engine/    pure rules: tiles, wall, win detection, the hand state machine, scoring, view projection
+  bots/      bot policies (Easy / Medium / Hard): shanten, ukeire, danger, the arena
   protocol/  zod schemas + TS types for every client↔server message
   server/    rooms, lobby, seat controllers, claim timers, WebSocket transport
   client/    React UI: lobby, table, hand, action bar
 ```
 
-Dependencies point one way: `client` and `server` → `protocol` → `engine`. The engine imports nothing.
+Dependencies point one way: `client` and `server` → `protocol` → `engine`, and `server` → `bots` →
+`engine`. The engine imports nothing.
 
 Packages export their TypeScript source directly (`"exports": "./src/index.ts"`); Vite and `tsx` compile on
 the fly, so there's no build step between packages during development.
@@ -211,9 +213,11 @@ Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (
   `voteRemoveMsLeft`.
 - **Seat controllers**: `HumanController` forwards updates to a connection. `PolicyController` runs a
   `Policy` (a function from view + legal actions to an action) in-process after a short delay.
-  `randomPolicy` plays the bots; future bots are just smarter policies.
-- **Bots**: the host's `addBots` fills every empty seat with a bot member (never connected, named "Bot N")
-  that plays `randomPolicy` after `botDelayMs` (1.5 s; `BOT_DELAY_MS` overrides it locally). Bots also
+  Bots are policies from `@mahjong/bots` (Easy / Medium / Hard, [bots.md](bots.md)), run in-process (each
+  decides in under a millisecond) after a human-like delay (`humanLikeDelay`).
+- **Bots**: the host's `addBots` fills every empty seat with a bot member (never connected, named e.g.
+  "Medium Bot 3") at the room's bot level. They think for 0.8–2 s on claims and 1–2.5 s on their turn
+  (`BOT_DELAY_MS` fixes it locally). Bots also
   take over from people who leave or are replaced. A person taking a bot's seat removes the bot.
 - **Sessions & reconnect**: `welcome` gives each member a random `sessionToken`, which the client keeps in
   `localStorage`. Joining again with that token reclaims the same member and seat (from the bot keeping it,
@@ -253,7 +257,8 @@ Client → server (all validated):
 // host only:
 { t: "addBots" } | { t: "removeMember", memberId } | { t: "replaceWithBot", seat } | { t: "cancelHand" }
 { t: "answerRequest", memberId, approve } | { t: "startGame" } | { t: "resumeGame" } | { t: "newGame" }
-{ t: "updateSettings", settings: Partial<GameSettings> }   // before a game only
+{ t: "updateSettings", settings: Partial<RoomSettings> }   // game settings before a game; botLevel also while paused
+{ t: "setBotLevel", seat, level }                          // one bot (before a game or while paused)
 ```
 
 Server → client:
@@ -261,7 +266,7 @@ Server → client:
 ```ts
 { t: "welcome", room, memberId, sessionToken }
 { t: "lobby", room, hostId, phase, members: { id, name, seat, connected, bot }[], seats,
-  seatInfo: { issue, reservedFor, ready, voted }[], settings: GameSettings, game: GameState | null,
+  seatInfo: { issue, reservedFor, ready, voted }[], settings: RoomSettings, game: GameState | null,
   readyMsLeft, voteRemoveMsLeft, requests: { id, name }[] }
 { t: "state", stateVersion, view: PlayerView, legalActions: Action[], events: GameEvent[], claimMsLeft }
 { t: "error", code, message }   // badMessage | noSuchRoom | notInRoom | seatTaken | handInProgress |

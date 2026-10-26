@@ -14,6 +14,7 @@ npm run test:watch
 npm run typecheck   # tsc in every package
 npm run build       # production build: client → packages/client/dist, server → packages/server/dist
 npm start           # run the production build (http://localhost:8787, or $PORT)
+npm run arena -w @mahjong/bots -- 2000 hard medium easy random   # pit bot levels against each other
 ```
 
 In development, Vite proxies `/ws` to the server, so the client always connects to the same origin.
@@ -43,6 +44,8 @@ packages/
     testing.ts        stackWall: build an exact wall from hand notation
     clone.ts          deep copy for plain data (keeps the engine free of environment APIs)
     *.test.ts         tests sit next to the code they test
+  bots/src/           bot policies: shanten, ukeire, visible (unseen tiles), danger, easy, medium, hard,
+                      lookahead (experimental), arena + arena-cli (npm run arena -w @mahjong/bots)
   protocol/src/       zod schemas + types for every client↔server message
   server/src/         Node + ws server
     app.ts            HTTP + WebSocket wiring, message routing

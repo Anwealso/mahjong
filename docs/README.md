@@ -11,7 +11,7 @@ over a voice call. Desktop only for now.
 | [decisions.md](decisions.md) | Decision log: what was chosen, what was considered, and why |
 | [roadmap.md](roadmap.md) | Milestones, current status, open questions |
 | [development.md](development.md) | Setup, commands, repo layout, coding conventions |
-| [bots.md](bots.md) | Proposal: Easy / Medium / Hard bots, algorithms, where they run (milestone 7) |
+| [bots.md](bots.md) | Easy / Medium / Hard bots: algorithms, arena results, how they run |
 | [deploy.md](deploy.md) | Fly.io setup (one-time steps), deploying, logs, running a production build |
 
 ## The project in 30 seconds

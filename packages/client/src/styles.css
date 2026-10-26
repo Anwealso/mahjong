@@ -372,11 +372,11 @@ select.level {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: 1fr;
-  max-width: 360px;
-  padding: 3px;
-  border-radius: 10px;
+  max-width: 280px;
+  padding: 2px;
+  border-radius: 9px;
   background: rgb(0 0 0 / 0.25);
 }
-.segments button { padding: 6px 12px; border-radius: 7px; background: none; color: inherit; font-weight: 500; }
-.segments button.on { background: #f2efe6; color: #1b1b1b; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); }
+.segments button { padding: 3px 10px; border-radius: 7px; background: none; color: inherit; font-weight: 400; }
+.segments button.on { background: #f2efe6; color: #1b1b1b; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); }
 .segments button:disabled { opacity: 1; cursor: default; }

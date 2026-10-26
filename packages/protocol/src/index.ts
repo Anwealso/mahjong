@@ -25,8 +25,11 @@ export const playerNameSchema = z.string().trim().min(1).max(20);
 export const botLevelSchema = z.enum(["easy", "medium", "hard"]);
 export type BotLevel = z.infer<typeof botLevelSchema>;
 
-/** The room's settings: the game settings (fixed once a game starts) plus the level for new bots. */
-export type RoomSettings = GameSettings & { botLevel: BotLevel };
+/**
+ * The room's settings: the game settings (fixed once a game starts), the level for new bots, and whether
+ * everyone's hands are shown at the end of each hand.
+ */
+export type RoomSettings = GameSettings & { botLevel: BotLevel; revealHands: boolean };
 
 export const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("discard"), tile: tileId }),
@@ -58,6 +61,11 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
    * break, or your own seat back from the bot keeping it for you.
    */
   z.object({ t: z.literal("takeSeat"), seat: seatSchema }),
+  /**
+   * Leave the room for good (your seat is given up as with leaveSeat). If you're the host, hosting passes
+   * to another person; with no other person left, the room is closed.
+   */
+  z.object({ t: z.literal("leaveRoom") }),
   /** Give up your seat. At a wind break a bot takes it over; otherwise it's left empty for the host. */
   z.object({ t: z.literal("leaveSeat") }),
   /** Watcher, during a game: ask the host to let you play. */
@@ -78,12 +86,12 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
   z.object({ t: z.literal("cancelHand") }),
   z.object({ t: z.literal("answerRequest"), memberId: z.string().max(20), approve: z.boolean() }),
   /**
-   * Change settings (only the ones given). Game settings only before a game; the bot level also while
-   * paused (it changes every bot in the room).
+   * Change settings (only the ones given). Game settings only before a game; the bot level (it changes
+   * every bot in the room) and revealing hands also while paused.
    */
   z.object({
     t: z.literal("updateSettings"),
-    settings: z.object({ dealerKeepsDeal: z.boolean(), botLevel: botLevelSchema }).partial(),
+    settings: z.object({ dealerKeepsDeal: z.boolean(), botLevel: botLevelSchema, revealHands: z.boolean() }).partial(),
   }),
   /** Change one bot's level (before a game, or while paused). */
   z.object({ t: z.literal("setBotLevel"), seat: seatSchema, level: botLevelSchema }),

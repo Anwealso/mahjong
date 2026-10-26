@@ -120,7 +120,7 @@ export const useStore = create<Store>()((set, get) => {
         set({ notice: { code: "serverRestarting", message: "The server is restarting…", at: Date.now(), ms: 10_000 } });
         return;
       case "error":
-        // A saved room that no longer exists: the server restarted (or the room was cleaned up). Forget it.
+        // A saved room that no longer exists: everyone left it, or the server restarted. Forget it.
         if (m.code === "noSuchRoom" && get().session) {
           saveSession(null);
           set({
@@ -129,7 +129,7 @@ export const useStore = create<Store>()((set, get) => {
             game: null,
             notice: {
               code: m.code,
-              message: "The server restarted, so that room and any game in it are gone. Start a new room to keep playing.",
+              message: "That room has closed (everyone left, or the server restarted). Start a new room to keep playing.",
               at: Date.now(),
               ms: 12_000,
             },
@@ -163,10 +163,9 @@ export const useStore = create<Store>()((set, get) => {
       socket.send({ t: "join", room, name });
     },
     leaveRoom() {
+      socket.send({ t: "leaveRoom" });
       saveSession(null);
       set({ session: null, lobby: null, game: null, viewingResult: false, leftGame: false });
-      // The server only notices we've gone when the socket closes, so start a fresh one.
-      socket.restart();
     },
     send: (message) => socket.send(message),
     takeSeat: (seat) => socket.send({ t: "takeSeat", seat }),

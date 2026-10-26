@@ -73,6 +73,7 @@ export function Table({ game }: { game: GameSnapshot }) {
             ) : (
               <OpponentHand
                 player={p}
+                flipDelay={300 * ((p.seat - me + 3) % 4)}
                 revealed={revealedGroups(p.seat)}
                 winningTile={win?.winner === p.seat ? win.tile : null}
               />
@@ -131,17 +132,23 @@ function SeatLabel(props: { name: string; wind: Wind; dealer: boolean; score: nu
 
 /**
  * Another player: locked sets face up, then their complete concealed sets as face-down groups of three,
- * then the rest face down and loose. At the end of the hand, their tiles are shown face up (the winner's
+ * then the rest face down and loose. At the end of the hand, their tiles flip face up (the winner's
  * formed up into sets).
  */
-function OpponentHand(props: { player: PublicPlayer; revealed: TileId[][] | null; winningTile: TileId | null }) {
+function OpponentHand(props: {
+  player: PublicPlayer;
+  revealed: TileId[][] | null;
+  winningTile: TileId | null;
+  /** When their tiles start flipping face up at the end of the hand. */
+  flipDelay: number;
+}) {
   const { player, revealed } = props;
   const loose = player.handCount - 3 * player.concealedSets;
   return (
     <div className="opponent-hand">
       <Melds melds={player.melds} size="sm" />
       {revealed ? (
-        <RevealedGroups groups={revealed} size="sm" winningTile={props.winningTile} />
+        <RevealedGroups groups={revealed} size="sm" winningTile={props.winningTile} flipDelay={props.flipDelay} />
       ) : (
         <>
           {Array.from({ length: player.concealedSets }, (_, i) => (

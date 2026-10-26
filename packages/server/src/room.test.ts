@@ -111,6 +111,37 @@ describe("lobby", () => {
     expect(conns[2]!.lobby.hostId).toBe(ids[1]);
   });
 
+  it("a host who leaves the room hands over to a person, connected ones first, never a bot", () => {
+    const room = new Room("TEST", OPTIONS);
+    const [a, b, c] = [new FakeConnection(), new FakeConnection(), new FakeConnection()];
+    const [idA, idB, idC] = [room.join("Ann", undefined, a), room.join("Ben", undefined, b), room.join("Cat", undefined, c)];
+    room.takeSeat(idA, 0);
+    room.addBots(idA);
+    room.disconnect(idB, b);
+    expect(room.leave(idA)).toBe(false);
+    expect(c.lobby.hostId).toBe(idC);
+    expect(c.lobby.members.map((m) => m.name)).not.toContain("Ann");
+    expect(c.lobby.seats[0]).toBeNull();
+    // Only an offline person is left besides bots: they're host when they come back.
+    expect(room.leave(idC)).toBe(false);
+    room.join("Ben", b.token, b);
+    expect(b.lobby.hostId).toBe(idB);
+    room.dispose();
+  });
+
+  it("the room closes once the last person leaves, even with bots still seated", () => {
+    const room = new Room("TEST", OPTIONS);
+    const [a, b] = [new FakeConnection(), new FakeConnection()];
+    const [idA, idB] = [room.join("Ann", undefined, a), room.join("Ben", undefined, b)];
+    room.takeSeat(idA, 0);
+    room.addBots(idA);
+    expect(room.leave(idB)).toBe(false);
+    expect(room.hasPeople).toBe(true);
+    expect(room.leave(idA)).toBe(true);
+    expect(room.hasPeople).toBe(false);
+    room.dispose();
+  });
+
   it("drops disconnected watchers after a while, but not seated players", () => {
     const { room, conns, ids } = setup(undefined, { watcherTimeoutMs: 1000 });
     const zoe = new FakeConnection();
@@ -189,7 +220,25 @@ describe("bot levels", () => {
     nextSeatWins(ctx, 0);
     ctx.room.returnToLobby(ctx.ids[0]!);
     expect(ctx.room.updateSettings(ctx.ids[0]!, { botLevel: "easy" })).toBeNull();
+    expect(ctx.room.updateSettings(ctx.ids[0]!, { revealHands: false })).toBeNull();
     expect(ctx.room.updateSettings(ctx.ids[0]!, { dealerKeepsDeal: true })?.code).toBe("notAllowed");
+  });
+
+  it("everyone's hands are shown at the end of a hand unless the host turns it off", () => {
+    const revealed = (conn: FakeConnection) => {
+      const { phase } = conn.state.view;
+      return phase.kind === "handOver" ? phase.hands.map((h) => h !== null) : null;
+    };
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    expect(revealed(ctx.conns[2]!)).toEqual([true, true, true, true]);
+
+    const off = setup(NEXT_WINS);
+    expect(off.room.updateSettings(off.ids[1]!, { revealHands: false })?.code).toBe("notHost");
+    expect(off.room.updateSettings(off.ids[0]!, { revealHands: false })).toBeNull();
+    off.room.startGame(off.ids[0]!);
+    nextSeatWins(off, 0);
+    expect(revealed(off.conns[2]!)).toEqual([false, true, true, false]); // the winner's and your own
   });
 
   it("hard bots play whole hands", async () => {

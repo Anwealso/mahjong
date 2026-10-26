@@ -104,7 +104,7 @@ export class Room {
   private readonly reserved: (Reservation | null)[] = EMPTY(null);
   private hostId: string | null = null;
   private phase: RoomPhase = "lobby";
-  private settings: RoomSettings = { ...DEFAULT_GAME_SETTINGS, botLevel: "medium" };
+  private settings: RoomSettings = { ...DEFAULT_GAME_SETTINGS, botLevel: "medium", revealHands: true };
   private game: GameState | null = null;
   private hand: HandState | null = null;
   /** Bumped whenever something visible happens. Actions must quote the version they were made against. */
@@ -131,6 +131,11 @@ export class Room {
 
   get connectedCount(): number {
     return [...this.members.values()].filter((m) => m.connection).length;
+  }
+
+  /** Whether any person (not a bot) is still in the room, connected or not. Without one it's closed. */
+  get hasPeople(): boolean {
+    return [...this.members.values()].some((m) => !m.bot);
   }
 
   // ---- membership ----------------------------------------------------------------------------------
@@ -212,6 +217,31 @@ export class Room {
     return null;
   }
 
+  /**
+   * Leave the room for good. Their seat goes as with `leaveSeat` (at any phase). A leaving host hands over
+   * to another person, connected ones first; bots are never host. Returns whether the room should now be
+   * closed because no person is left in it.
+   */
+  leave(memberId: string): boolean {
+    this.lastActivity = Date.now();
+    const member = this.members.get(memberId);
+    if (!member || member.bot) return !this.hasPeople;
+    if (member.seat !== null) {
+      if (this.phase === "windBreak") this.seatBot(member.seat);
+      else this.vacate(member.seat);
+    }
+    this.members.delete(memberId);
+    for (const seat of SEATS) if (this.reserved[seat]?.memberId === memberId) this.reserved[seat] = null;
+    this.requests = this.requests.filter((id) => id !== memberId);
+    if (this.hostId === memberId) {
+      const people = [...this.members.values()].filter((m) => !m.bot);
+      this.hostId = (people.find((m) => m.connection) ?? people[0])?.id ?? null;
+    }
+    if (!this.hasPeople) return true;
+    this.afterSeatsChanged();
+    return false;
+  }
+
   // ---- host ----------------------------------------------------------------------------------------
 
   /** Fill every empty seat with a bot that plays random legal moves (testing, or a short table). */
@@ -267,7 +297,7 @@ export class Room {
 
   /**
    * The host changes settings. Game settings only before a game (they're fixed once it starts); the bot
-   * level also while paused, and it changes every bot in the room.
+   * level (it changes every bot in the room) and revealing hands also while paused.
    */
   updateSettings(memberId: string, settings: Partial<RoomSettings>): RoomError | null {
     const gameSettings = settings.dealerKeepsDeal !== undefined;
@@ -702,7 +732,7 @@ export class Room {
     const hand = this.hand!;
     return {
       stateVersion: this.version,
-      view: projectView(hand, seat),
+      view: projectView(hand, seat, { revealHands: this.settings.revealHands }),
       legalActions: this.phase === "hand" ? legalActions(hand, seat) : [],
       events: projectEvents(events, seat),
       claimMsLeft: this.claimDeadline === null ? null : Math.max(0, this.claimDeadline - Date.now()),

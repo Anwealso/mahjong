@@ -33,8 +33,11 @@ export type ViewPhase =
   | { kind: "claimWindow"; source: ClaimSource; from: Seat; tile: TileId; awaitingYou: boolean }
   /** `seat` claimed `tile` and is deciding how to use it. */
   | { kind: "claimed"; seat: Seat; from: Seat; tile: TileId }
-  /** At the end of a hand every hand is revealed. */
-  | { kind: "handOver"; result: HandResult; hands: TileId[][] };
+  /**
+   * At the end of a hand the hands are revealed: everyone's, or (with `revealHands` off) only yours and
+   * the winner's. A hidden hand is `null`.
+   */
+  | { kind: "handOver"; result: HandResult; hands: (TileId[] | null)[] };
 
 /** Everything one seat is allowed to know. This, never `HandState`, is what leaves the server. */
 export interface PlayerView {
@@ -50,7 +53,12 @@ export interface PlayerView {
   phase: ViewPhase;
 }
 
-export function projectView(state: HandState, seat: Seat): PlayerView {
+export interface ViewOptions {
+  /** Show every hand at the end of the hand, not just yours and the winner's. Default true. */
+  revealHands?: boolean;
+}
+
+export function projectView(state: HandState, seat: Seat, options: ViewOptions = {}): PlayerView {
   const { phase } = state;
   let viewPhase: ViewPhase;
   if (phase.kind === "awaitDiscard") viewPhase = { kind: "awaitDiscard", seat: phase.seat };
@@ -64,7 +72,11 @@ export function projectView(state: HandState, seat: Seat): PlayerView {
     };
   } else if (phase.kind === "claimed") {
     viewPhase = { kind: "claimed", seat: phase.seat, from: phase.from, tile: phase.tile };
-  } else viewPhase = { kind: "handOver", result: phase.result, hands: state.players.map((p) => [...p.hand]) };
+  } else {
+    const { result } = phase;
+    const shown = (s: Seat) => options.revealHands !== false || s === seat || (result.kind === "win" && s === result.winner);
+    viewPhase = { kind: "handOver", result, hands: SEATS.map((s) => (shown(s) ? [...state.players[s]!.hand] : null)) };
+  }
 
   return clone({
     seat,

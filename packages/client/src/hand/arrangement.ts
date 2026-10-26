@@ -13,10 +13,10 @@ export const EMPTY_ARRANGEMENT: Arrangement = { groups: [], loose: [] };
 
 /**
  * Fit an arrangement to the hand the server says we hold. Tiles that left the hand are dropped, and a
- * group that lost a tile breaks up (its other tiles become loose). New tiles go at the end. Returns the
- * same object if nothing changed.
+ * group that lost a tile breaks up (its other tiles become loose). New tiles go at the end, with the tile
+ * just drawn (if it's new) last of all, in the draw spot. Returns the same object if nothing changed.
  */
-export function reconcile(arrangement: Arrangement, hand: readonly TileId[]): Arrangement {
+export function reconcile(arrangement: Arrangement, hand: readonly TileId[], drawn: TileId | null = null): Arrangement {
   const inHand = new Set(hand);
   const groups = arrangement.groups.filter((g) => g.every((t) => inHand.has(t)));
   const broken = arrangement.groups.filter((g) => !groups.includes(g)).flat().filter((t) => inHand.has(t));
@@ -24,7 +24,8 @@ export function reconcile(arrangement: Arrangement, hand: readonly TileId[]): Ar
   const loose = [
     ...arrangement.loose.filter((t) => inHand.has(t)),
     ...broken,
-    ...hand.filter((t) => !placed.has(t)),
+    ...hand.filter((t) => !placed.has(t) && t !== drawn),
+    ...(drawn !== null && inHand.has(drawn) && !placed.has(drawn) ? [drawn] : []),
   ];
   const unchanged =
     groups.length === arrangement.groups.length &&

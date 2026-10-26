@@ -311,11 +311,13 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   your private groups, then loose tiles. Loose tiles can be dragged into any order (`dnd-kit`); **Sort**
   (`S`) tidies only the loose tiles. Only a complete set of loose tiles can be grouped. Order and groups
   are stored by `TileId` in `localStorage` per room and member; tiles that leave the hand drop out, a
-  group that loses a tile breaks up, and new tiles are added at the end (the drawn tile is set slightly
-  apart).
+  group that loses a tile breaks up, and new tiles are added at the end. The drawn tile (including the
+  dealer's 14th tile) always lands last, in a draw spot set slightly apart, and you can drag it out of
+  there like any other tile.
 - **Selecting**: click tiles to select them; a **toolbar floats above the selection** with what you can
   do with it: **Discard** (`Enter`), **Group** / **Ungroup** (`G`), **Kong** (four of a kind, `K`), **Add
-  to kong** (`K`). Each group also shows an Ungroup button on hover.
+  to kong** (`K`). Each group also shows an Ungroup button on hover. On each draw the drawn tile starts
+  selected, so `Enter` discards it straight away.
 - **Claiming**: the claimable discard glows in its pond and in the centre, with a countdown ring from
   `claimMsLeft`. Click it or press `Space` to claim; `Esc` passes.
 - **Using a claimed tile** (`hand/claimOptions.ts`): if there's only one way to use it, its tiles are

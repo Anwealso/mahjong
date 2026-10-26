@@ -21,7 +21,7 @@ export interface Command {
 export function useTableControls(game: GameSnapshot, storageKey: string, act: (action: Action) => void) {
   const { view, legalActions } = game;
   const { phase } = view;
-  const [arrangement, setArrangement] = useArrangement(storageKey, view.hand);
+  const [arrangement, setArrangement] = useArrangement(storageKey, view.hand, view.lastDrawn);
   const [selection, setSelection] = useState<TileId[]>([]);
   const [chosen, setChosen] = useState<string | null>(null);
 
@@ -57,6 +57,12 @@ export function useTableControls(game: GameSnapshot, storageKey: string, act: (a
     if (only) choose(only);
     else setSelection([]);
   }, [claimKey]);
+
+  // Just drew a tile: pre-select it, so Enter throws it straight back if you don't want it.
+  const drawnKey = myTurn && view.lastDrawn !== null ? view.lastDrawn : null;
+  useEffect(() => {
+    if (drawnKey !== null) setSelection([drawnKey]);
+  }, [drawnKey]);
 
   const chosenOption = options.find((o) => o.key === chosen) ?? null;
 

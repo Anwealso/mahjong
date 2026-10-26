@@ -4,20 +4,22 @@ import { CSS } from "@dnd-kit/utilities";
 import { kindOf, type Meld, type TileId } from "@mahjong/engine";
 import { moveLoose } from "../hand/arrangement";
 import { Tile } from "../Tile";
-import { Melds } from "./Melds";
+import { Melds, RevealedGroups } from "./Melds";
 import type { Command, TableControls } from "./useTableControls";
 
 interface Props {
   controls: TableControls;
   melds: Meld[];
   lastDrawn: TileId | null;
+  /** Set once you've won: your hand formed up into its sets, replacing your own layout. */
+  won: { groups: TileId[][]; tile: TileId } | null;
 }
 
 /**
  * Your side of the table: locked sets, then your private groups (on the left), then loose tiles you can
  * drag into any order. Clicking tiles selects them; a toolbar floats above the selection.
  */
-export function MyHand({ controls, melds, lastDrawn }: Props) {
+export function MyHand({ controls, melds, lastDrawn, won }: Props) {
   const { arrangement, setArrangement, selection, selectionCommands, options, claimedTile } = controls;
   // Small movement threshold so a click still selects instead of starting a drag.
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 6 } }));
@@ -41,14 +43,24 @@ export function MyHand({ controls, melds, lastDrawn }: Props) {
   };
 
   const lastLoose = arrangement.loose[arrangement.loose.length - 1];
+  const lockedSets = melds.length > 0 && (
+    <div className="my-melds" title="Locked sets">
+      <Melds melds={melds} size="md" />
+    </div>
+  );
+
+  if (won) {
+    return (
+      <div className="my-hand">
+        {lockedSets}
+        <RevealedGroups groups={won.groups} size="md" winningTile={won.tile} />
+      </div>
+    );
+  }
 
   return (
     <div className="my-hand">
-      {melds.length > 0 && (
-        <div className="my-melds" title="Locked sets">
-          <Melds melds={melds} size="md" />
-        </div>
-      )}
+      {lockedSets}
       {arrangement.groups.map((g, i) => (
         <div key={g.join(",")} className="hand-group">
           <button className="ungroup" onClick={() => controls.ungroupAt(i)} title="Ungroup (select the group, then G)">

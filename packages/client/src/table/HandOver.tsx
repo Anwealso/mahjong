@@ -1,13 +1,21 @@
-import { kindCode, kindOf, SEATS, type Seat } from "@mahjong/engine";
+import { kindCode, kindOf, SEATS, type Seat, type TileId } from "@mahjong/engine";
 import type { RoomView } from "../net/room";
 import { useStore, type GameSnapshot } from "../net/store";
 import { formatPoints, useCountdown, WIND_NAMES } from "../screens/Scoreboard";
+import { Melds, RevealedGroups } from "./Melds";
 
 /**
  * The result of the hand, with running totals. Between hands everyone readies up (the next hand is dealt
  * after a 10 s countdown anyway); after the last hand of a wind it leads to the wind break instead.
  */
-export function HandOver({ game, room, nameOf }: { game: GameSnapshot; room: RoomView; nameOf: (s: Seat) => string }) {
+export function HandOver(props: {
+  game: GameSnapshot;
+  room: RoomView;
+  nameOf: (s: Seat) => string;
+  /** The winner's concealed tiles, formed up into sets. */
+  winningHand: TileId[][] | null;
+}) {
+  const { game, room, nameOf, winningHand } = props;
   const { send, set, lobbyAt } = useStore();
   const { phase } = game.view;
   const { lobby, mySeat } = room;
@@ -31,6 +39,12 @@ export function HandOver({ game, room, nameOf }: { game: GameSnapshot; room: Roo
   return (
     <div className="hand-over">
       <h2>{headline}</h2>
+      {result.kind === "win" && winningHand && (
+        <div className="winning-hand">
+          <Melds melds={game.view.players[result.winner]!.melds} size="sm" />
+          <RevealedGroups groups={winningHand} size="sm" winningTile={result.tile} />
+        </div>
+      )}
       <table className="scoreboard">
         <thead>
           <tr>

@@ -63,7 +63,8 @@ for the whole game (also while paused) and carry over to the next game.
 ## Between hands
 
 When a hand ends, everyone sees the result: who won and how, the hand's payments, and the running totals.
-All hands are revealed.
+All hands are revealed, and the winner's hand is formed up into its sets and pair (with the winning tile
+highlighted), both at their seat and in the result panel.
 
 - Each seated person clicks **Ready**. The next hand is dealt as soon as every seated person is ready, or
   automatically after a **10 s countdown**.

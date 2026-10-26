@@ -306,7 +306,9 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   centre, with the latest discard outlined. The centre shows the prevailing wind, the wall count, and the
   tile on offer during a claim window.
 - **Opponents**: locked sets face up, then `concealedSets` face-down groups of three, then the remaining
-  tiles face down and loose. At the end of the hand every hand is shown face up.
+  tiles face down and loose. At the end of the hand every hand is shown face up; the winner's (yours
+  included) is split into its sets and pair by `winningGroups` (engine `win.ts`). If you won, the split
+  that keeps the most of your own groups is used, and they come first.
 - **Your hand** (`table/MyHand.tsx`, logic in `hand/arrangement.ts`): locked sets on the far left, then
   your private groups, then loose tiles. Loose tiles can be dragged into any order (`dnd-kit`); **Sort**
   (`S`) tidies only the loose tiles. Only a complete set of loose tiles can be grouped. Order and groups

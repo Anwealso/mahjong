@@ -1,4 +1,4 @@
-import { kindCode, kindOf, type PublicPlayer, type Seat, type TileId, type Wind } from "@mahjong/engine";
+import { kindCode, kindOf, winningGroups, type PublicPlayer, type Seat, type TileId, type Wind } from "@mahjong/engine";
 import { useEffect, useState } from "react";
 import { useRoom } from "../net/room";
 import { useStore, type GameSnapshot } from "../net/store";
@@ -6,7 +6,7 @@ import { formatPoints, WIND_GLYPHS, WIND_NAMES } from "../screens/Scoreboard";
 import { Tile } from "../Tile";
 import { HandOver } from "./HandOver";
 import { HostPrompts } from "./HostPrompts";
-import { Melds } from "./Melds";
+import { Melds, RevealedGroups } from "./Melds";
 import { MyHand } from "./MyHand";
 import { useTableControls, type Command } from "./useTableControls";
 
@@ -38,6 +38,15 @@ export function Table({ game }: { game: GameSnapshot }) {
   const turnSeat =
     view.phase.kind === "awaitDiscard" || view.phase.kind === "claimed" ? view.phase.seat : null;
   const revealed = view.phase.kind === "handOver" ? view.phase.hands : null;
+  const win = view.phase.kind === "handOver" && view.phase.result.kind === "win" ? view.phase.result : null;
+  // The winner's hand is formed up into its sets (keeping the groups you made, if it's yours); everyone
+  // else's is just turned face up.
+  const revealedGroups = (seat: Seat): TileId[][] | null => {
+    const hand = revealed?.[seat];
+    if (!hand) return null;
+    const preferred = seat === me ? controls.arrangement.groups : [];
+    return (seat === win?.winner && winningGroups(hand, preferred)) || [hand];
+  };
   const offer = view.phase.kind === "claimWindow" ? view.phase.tile : null;
   const canClaim = game.legalActions.some((a) => a.type === "claim");
 
@@ -55,9 +64,18 @@ export function Table({ game }: { game: GameSnapshot }) {
               host={room.lobby.seats[p.seat] === room.lobby.hostId}
             />
             {pos === "bottom" ? (
-              <MyHand controls={controls} melds={p.melds} lastDrawn={view.lastDrawn} />
+              <MyHand
+                controls={controls}
+                melds={p.melds}
+                lastDrawn={view.lastDrawn}
+                won={win?.winner === me ? { groups: revealedGroups(me)!, tile: win.tile } : null}
+              />
             ) : (
-              <OpponentHand player={p} revealed={revealed?.[p.seat] ?? null} />
+              <OpponentHand
+                player={p}
+                revealed={revealedGroups(p.seat)}
+                winningTile={win?.winner === p.seat ? win.tile : null}
+              />
             )}
           </div>
         );
@@ -84,7 +102,9 @@ export function Table({ game }: { game: GameSnapshot }) {
       </div>
 
       <ActionBar commands={controls.barCommands} status={statusLine(game, nameOf)} onSort={controls.sort} />
-      {view.phase.kind === "handOver" && <HandOver game={game} room={room} nameOf={nameOf} />}
+      {view.phase.kind === "handOver" && (
+        <HandOver game={game} room={room} nameOf={nameOf} winningHand={win ? revealedGroups(win.winner) : null} />
+      )}
       <HostPrompts room={room} nameOf={nameOf} />
       <button className="leave-table subtle" onClick={leave}>
         Leave table
@@ -111,19 +131,17 @@ function SeatLabel(props: { name: string; wind: Wind; dealer: boolean; score: nu
 
 /**
  * Another player: locked sets face up, then their complete concealed sets as face-down groups of three,
- * then the rest face down and loose. At the end of the hand, their tiles are shown face up.
+ * then the rest face down and loose. At the end of the hand, their tiles are shown face up (the winner's
+ * formed up into sets).
  */
-function OpponentHand({ player, revealed }: { player: PublicPlayer; revealed: TileId[] | null }) {
+function OpponentHand(props: { player: PublicPlayer; revealed: TileId[][] | null; winningTile: TileId | null }) {
+  const { player, revealed } = props;
   const loose = player.handCount - 3 * player.concealedSets;
   return (
     <div className="opponent-hand">
       <Melds melds={player.melds} size="sm" />
       {revealed ? (
-        <div className="meld">
-          {revealed.map((t) => (
-            <Tile key={t} kind={kindOf(t)} size="sm" />
-          ))}
-        </div>
+        <RevealedGroups groups={revealed} size="sm" winningTile={props.winningTile} />
       ) : (
         <>
           {Array.from({ length: player.concealedSets }, (_, i) => (

@@ -1,8 +1,7 @@
-import { SEATS } from "@mahjong/engine";
-import type { BotLevel } from "@mahjong/protocol";
+import { SEATS, seatWind } from "@mahjong/engine";
 import { useRoom } from "../net/room";
 import { useStore } from "../net/store";
-import { Scoreboard, WIND_GLYPHS } from "./Scoreboard";
+import { Scoreboard, WIND_GLYPHS, WIND_NAMES } from "./Scoreboard";
 
 /**
  * The room outside the table: before a game (take seats, bots, start), while a game is paused (scores,
@@ -82,9 +81,13 @@ export function LobbyScreen() {
           // Before a game you can move freely; while paused, watchers can fill a seat or replace a bot.
           const free = !m || m.bot;
           const canTake = free && (phase === "lobby" || (phase === "paused" && mySeat === null));
+          // During a game seat winds follow the dealer; before one, name the seats in turn order.
+          const wind = game ? seatWind(seat, game.dealer) : seat;
           return (
             <div key={seat} className={`seat-card${isMine ? " mine" : ""}`}>
-              <div className="muted">Seat {seat + 1}</div>
+              <div className="muted">
+                Seat {seat + 1} · {WIND_GLYPHS[wind]} {WIND_NAMES[wind]}
+              </div>
               <div className="seat-name">
                 {m?.id === lobby.hostId && <span title="Host">👑</span>}
                 {m ? m.name : "Empty"}
@@ -165,6 +168,28 @@ export function LobbyScreen() {
           Leave room
         </button>
       </div>
+
+      {/* Below everything else, as a card. */}
+      {(phase === "lobby" || phase === "paused") && (
+        <section className="game-settings">
+          <h2>Game settings</h2>
+          <label className={isHost && phase === "lobby" ? undefined : "muted"}>
+            <input
+              type="checkbox"
+              checked={(game?.settings ?? lobby.settings).dealerKeepsDeal}
+              disabled={!isHost || phase !== "lobby"}
+              onChange={(e) => send({ t: "updateSettings", settings: { dealerKeepsDeal: e.target.checked } })}
+            />
+            Dealer keeps the deal after a dealer win or a draw
+          </label>
+          <p className="muted small">
+            {(game?.settings ?? lobby.settings).dealerKeepsDeal
+              ? "Traditional: winds last until every seat has lost the deal."
+              : "The deal passes on after every hand, so each wind is exactly four hands."}
+            {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
+          </p>
+        </section>
+      )}
     </main>
   );
 }

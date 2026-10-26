@@ -1,6 +1,8 @@
 import type { Action, Seat, TileId } from "@mahjong/engine";
 import type { ClientMessage, ErrorCode, LobbyMessage, ServerMessage } from "@mahjong/protocol";
 import { create } from "zustand";
+import { soundsFor } from "../sound/cues";
+import { playCues } from "../sound/player";
 import { GameSocket, type ConnectionStatus } from "./socket";
 
 type StateMessage = Extract<ServerMessage, { t: "state" }>;
@@ -111,6 +113,7 @@ export const useStore = create<Store>()((set, get) => {
           viewingResult: ended || (s.viewingResult && !dealt),
           lastDiscard: discarded?.type === "discarded" ? discarded.tile : dealt ? null : s.lastDiscard,
         }));
+        playCues(soundsFor(m.events, m.view.seat, m.view.dealer, m.legalActions));
         return;
       }
       case "serverRestarting":

@@ -1,8 +1,9 @@
 import { SEATS, type Seat } from "@mahjong/engine";
 import type { SeatIssue } from "@mahjong/protocol";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RoomView } from "../net/room";
 import { useStore } from "../net/store";
+import { play } from "../sound/player";
 
 const ISSUE_TEXT: Record<SeatIssue, string> = {
   empty: "has left the table",
@@ -22,6 +23,14 @@ export function HostPrompts({ room, nameOf }: { room: RoomView; nameOf: (s: Seat
   const issues = SEATS.flatMap((seat) => {
     const issue = lobby.seatInfo[seat]!.issue;
     return issue ? [{ seat, issue, key: `${seat}:${issue}:${lobby.seats[seat]}` }] : [];
+  });
+
+  // A soft notification for the host whenever a new prompt appears.
+  const promptKeys = isHost ? [...issues.map((i) => i.key), ...lobby.requests.map((r) => r.id)] : [];
+  const seen = useRef<string[]>(promptKeys);
+  useEffect(() => {
+    if (promptKeys.some((k) => !seen.current.includes(k))) play("hostPrompt");
+    seen.current = promptKeys;
   });
 
   return (

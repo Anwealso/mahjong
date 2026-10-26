@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useRoom } from "./net/room";
 import { useStore } from "./net/store";
+import { SettingsMenu } from "./SettingsMenu";
 import { CelebrationScreen } from "./screens/CelebrationScreen";
 import { JoinScreen } from "./screens/JoinScreen";
 import { LobbyScreen } from "./screens/LobbyScreen";
@@ -31,6 +32,7 @@ export function App() {
   return (
     <>
       {screen}
+      <SettingsMenu />
       {status !== "open" && <div className="connection">Connecting…</div>}
       {notice && (
         <div className="notice" onClick={dismissNotice}>

@@ -296,6 +296,8 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   watchers during a game) → **Table** (seated, during `hand`/`handOver`) → **Wind break** (after the last
   hand's result) → **Celebration** (game over, or after leaving at a wind break). `net/room.ts` derives
   "me / my seat / am I host / names" from the lobby message.
+- **Lobby layout**: one centred column: room code, seats, buttons, then the Game settings card at the
+  bottom.
 - **Table extras for milestone 5**: running seat scores next to names, "Round N · 東", the end-of-hand
   panel (payments, totals, ready marks, countdown, Ready / Return to lobby), host prompts for seat issues
   and join requests (`table/HostPrompts.tsx`), and a Leave table button.
@@ -323,6 +325,10 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   and the floating button confirms. `P` / `C` / `K` choose pung / chow / kong options, `H` wins. Tiles
   are picked from loose tiles before grouped ones. The server only ever receives the tiles you confirmed.
 - **Action bar**: a status line plus buttons built from `legalActions` (claim, pass, win, set options).
+- **Sound** (`sound/`, details in [sound.md](sound.md)): when a `state` message arrives, the store passes
+  its `events` to `soundsFor` (pure, unit tested), which picks the sounds; `player.ts` plays them with Web
+  Audio. Recorded clips are in `public/sounds/`; alerts and fanfares are synthesised. The celebration
+  screen and host prompts play their own sounds. Mute and volume live in the settings menu (gear, top left, `SettingsMenu.tsx`); `M` mutes anywhere.
 - **Tiles**: `Tile.tsx` draws every tile (CSS boxes with labels for now, in three sizes), so an SVG tile
   set can replace it in one place.
 

@@ -377,7 +377,30 @@ predictable (every four hands).
 for no benefit to a group that plays in sessions); saving rooms to a volume so deploys don't end games
 (more work, deferred); deploying by hand.
 
-## D26. Easy / Medium / Hard bots with human-like timing; Hard thinks in a worker thread
+## D26. Sound effects: recorded CC0 clips played from game events; lobby music to be chosen
+
+**Status:** accepted and built (sound effects) · lobby music parked · 2026-10-25 · details in [sound.md](sound.md)
+
+- **Tile sounds are recorded CC0 clips** from Kenney's *Casino Audio* pack. Alerts are soft tones
+  synthesised in the browser. Plain Web Audio, no audio library.
+- **The client maps the `events` in each `state` message to sounds**, so the server doesn't change. The
+  mapping is a pure, unit-tested function.
+- **A small set of sounds:** deal, discards (everyone's), your own draw, your turn, a claim ping when *you*
+  can claim, pung/chow and kong clacks, win fanfare, draw-hand thud, and a gong plus cheer on the
+  celebration screen. The host hears a soft notification for host prompts.
+- **Silent on purpose:** other players' draws, countdown ticks, and lobby join/leave.
+- **No music during a hand** (you're on a voice call). Lobby music is parked; the options are in
+  [sound.md](sound.md#lobby-music).
+- **Audio files are committed** (about 110 KB of AAC). Music, if added, would go in Git LFS, outside the
+  repo, or be generated in code, so the repo doesn't grow.
+- **Controls:** mute button, volume slider and `M`. On by default at about 60%, saved per browser.
+- **Accepted trade-off:** through an open mic, the claim ping can tell friends you had a claim.
+
+**Considered:** synthesising every sound (no files, but tile clacks sound plasticky); countdown ticks;
+sounds for other players' draws; making the claim alert visual only.
+
+
+## D27. Easy / Medium / Hard bots with human-like timing; Hard thinks in a worker thread
 
 **Status:** accepted · 2026-10-25 · full plan in [bots.md](bots.md) · replaces random bots as the default ·
 **the lookahead and worker thread are superseded** by [D27](#d27-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)
@@ -402,7 +425,7 @@ shanten/ukeire plus defence capture it cheaply. Equal reaction times keep the fi
 **Considered:** a separate bot service (extra machine and cost), bots in the host's browser (die with the
 tab, tamperable), learned policies (big project for little gain here).
 
-## D27. Hard ships with defence only, in-process: no lookahead, no worker thread
+## D28. Hard ships with defence only, in-process: no lookahead, no worker thread
 
 **Status:** accepted · 2026-10-26 · amends [D26](#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread)
 

@@ -137,6 +137,15 @@ describe("server", () => {
     expect(await res.json()).toEqual({ ok: true, rooms: 0 });
   });
 
+  it("seats whoever creates a room in East", async () => {
+    const c = await Client.connect(server.port);
+    c.send({ t: "createRoom", name: "Ann" });
+    const lobby = c.next("lobby", (m) => m.seats[0] !== null);
+    const { memberId } = await c.next("welcome");
+    expect((await lobby).seats).toEqual([memberId, null, null, null]);
+    c.close();
+  });
+
   it("rejects bad messages and unknown rooms", async () => {
     const c = await Client.connect(server.port);
     c.send("not json");

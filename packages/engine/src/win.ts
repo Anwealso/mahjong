@@ -87,23 +87,59 @@ export function isWinningHand(counts: readonly number[], exposedMelds: number, r
 /**
  * Lay out a winning hand's concealed tiles (winning tile included) as the groups it's made of: its sets,
  * then the pair. Seven pairs splits into pairs; thirteen orphans is one group. Null if it doesn't win.
+ *
+ * `preferred` are groups the player already formed (complete sets, by tile). When the hand splits more
+ * than one way, the split that keeps the most of them wins, and those groups come first, as laid out.
  */
-export function winningGroups(tiles: readonly TileId[]): TileId[][] | null {
+export function winningGroups(tiles: readonly TileId[], preferred: readonly TileId[][] = []): TileId[][] | null {
   const counts = countTiles(tiles);
   const byKind: TileId[][] = Array.from({ length: NUM_KINDS }, () => []);
   for (const t of sortTiles(tiles)) byKind[kindOf(t)]!.push(t);
   const take = (kind: TileKind, n: number) => byKind[kind]!.splice(0, n);
 
-  const [standard] = decompose(counts);
-  if (standard) {
-    const sets = standard.sets.map((s) =>
+  const decompositions = decompose(counts);
+  if (decompositions.length > 0) {
+    const inHand = new Set(tiles);
+    const wanted = preferred.filter((g) => g.every((t) => inHand.has(t)) && setOf(g) !== null);
+    let best = { decomposition: decompositions[0]!, kept: keptGroups(decompositions[0]!.sets, wanted) };
+    for (const decomposition of decompositions.slice(1)) {
+      const kept = keptGroups(decomposition.sets, wanted);
+      if (kept.groups.length > best.kept.groups.length) best = { decomposition, kept };
+    }
+
+    // The kept groups use exactly the player's tiles; the rest are dealt out from what's left.
+    for (const g of best.kept.groups) for (const t of g) byKind[kindOf(t)]!.splice(byKind[kindOf(t)]!.indexOf(t), 1);
+    const rest = best.kept.rest.map((s) =>
       s.type === "pung" ? take(s.kind, 3) : [...take(s.kind, 1), ...take(s.kind + 1, 1), ...take(s.kind + 2, 1)],
     );
-    return [...sets, take(standard.pair, 2)];
+    return [...best.kept.groups.map(sortTiles), ...rest, take(best.decomposition.pair, 2)];
   }
   if (isSevenPairs(counts)) return byKind.filter((g) => g.length > 0);
   if (isThirteenOrphans(counts)) return [sortTiles(tiles)];
   return null;
+}
+
+/** The set three tiles make, or null. */
+function setOf(group: readonly TileId[]): Set | null {
+  if (group.length !== 3) return null;
+  const [a, b, c] = group.map(kindOf).sort((x, y) => x - y) as [number, number, number];
+  if (a === b && b === c) return { type: "pung", kind: a };
+  if (canStartChow(a) && b === a + 1 && c === a + 2) return { type: "chow", kind: a };
+  return null;
+}
+
+/** Which of the player's groups this split keeps intact (in their order), and the split's other sets. */
+function keptGroups(sets: readonly Set[], groups: readonly TileId[][]): { groups: TileId[][]; rest: Set[] } {
+  const rest = [...sets];
+  const kept: TileId[][] = [];
+  for (const g of groups) {
+    const set = setOf(g)!;
+    const i = rest.findIndex((s) => s.type === set.type && s.kind === set.kind);
+    if (i < 0) continue;
+    rest.splice(i, 1);
+    kept.push([...g]);
+  }
+  return { groups: kept, rest };
 }
 
 /**

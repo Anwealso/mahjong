@@ -129,6 +129,21 @@ describe("winningGroups", () => {
     expect(groups("119c 19d 19b ESWNRGWh")).toEqual(["119c 19d 19b E S W N R G Wh"]);
   });
 
+  it("prefers the split that keeps the player's own groups, and puts them first", () => {
+    const hand = tiles("11223344556677c");
+    // The player grouped one 123c (the first copies of each) and the 456c run with the second copies.
+    const mine = [[hand[0]!, hand[2]!, hand[4]!], [hand[7]!, hand[9]!, hand[11]!]];
+    const result = winningGroups(hand, mine)!;
+    expect(result.slice(0, 2)).toEqual(mine);
+    expect(result.map((x) => formatKinds(x.map(kindOf)))).toEqual(["123c", "456c", "123c", "456c", "77c"]);
+  });
+
+  it("ignores groups that no winning split can keep", () => {
+    const hand = tiles("11223344556677c");
+    const result = winningGroups(hand, [[hand[1]!, hand[3]!, hand[13]!]])!; // 1 2 7: not a set
+    expect(result.map((x) => formatKinds(x.map(kindOf)))).toEqual(["234c", "234c", "567c", "567c", "11c"]);
+  });
+
   it("returns null for a hand that doesn't win", () => {
     expect(winningGroups(tiles("123c 456d 789b EEE RG"))).toBeNull();
   });

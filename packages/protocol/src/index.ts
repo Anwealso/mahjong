@@ -21,6 +21,13 @@ export const roomCodeSchema = z
 
 export const playerNameSchema = z.string().trim().min(1).max(20);
 
+/** How well bots play (docs/bots.md). */
+export const botLevelSchema = z.enum(["easy", "medium", "hard"]);
+export type BotLevel = z.infer<typeof botLevelSchema>;
+
+/** The room's settings: the game settings (fixed once a game starts) plus the level for new bots. */
+export type RoomSettings = GameSettings & { botLevel: BotLevel };
+
 export const actionSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("discard"), tile: tileId }),
   z.object({ type: z.literal("selfDrawWin") }),
@@ -70,8 +77,16 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
   /** Throw away the hand being played and pause in the lobby. */
   z.object({ t: z.literal("cancelHand") }),
   z.object({ t: z.literal("answerRequest"), memberId: z.string().max(20), approve: z.boolean() }),
-  /** Before a game: change the game settings (only the ones given). */
-  z.object({ t: z.literal("updateSettings"), settings: z.object({ dealerKeepsDeal: z.boolean() }).partial() }),
+  /**
+   * Change settings (only the ones given). Game settings only before a game; the bot level also while
+   * paused (it changes every bot in the room).
+   */
+  z.object({
+    t: z.literal("updateSettings"),
+    settings: z.object({ dealerKeepsDeal: z.boolean(), botLevel: botLevelSchema }).partial(),
+  }),
+  /** Change one bot's level (before a game, or while paused). */
+  z.object({ t: z.literal("setBotLevel"), seat: seatSchema, level: botLevelSchema }),
   /** Needs all four seats filled. The first dealer is random. */
   z.object({ t: z.literal("startGame") }),
   z.object({ t: z.literal("resumeGame") }),
@@ -91,6 +106,8 @@ export interface MemberInfo {
   seat: Seat | null;
   connected: boolean;
   bot: boolean;
+  /** For bots: how well it plays. */
+  botLevel: BotLevel | null;
 }
 
 /**
@@ -122,8 +139,8 @@ export interface LobbyMessage {
   /** Member id in each seat. */
   seats: (string | null)[];
   seatInfo: SeatInfo[];
-  /** For the next game (and the current one, which copied them when it started). */
-  settings: GameSettings;
+  /** Game settings for the next game (the current one copied them when it started), and the bot level. */
+  settings: RoomSettings;
   /** Dealer, wind, running scores per seat, and every finished hand. Null before a game starts. */
   game: GameState | null;
   /** Between hands: time left before the next hand is dealt anyway. Null while the countdown is stopped. */

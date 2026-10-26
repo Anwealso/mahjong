@@ -1,3 +1,4 @@
+import type { Policy } from "@mahjong/bots";
 import type { Action, GameEvent, PlayerView } from "@mahjong/engine";
 import type { ServerMessage } from "@mahjong/protocol";
 
@@ -35,12 +36,9 @@ export class HumanController implements SeatController {
   dispose() {}
 }
 
-/** Picks one of the legal actions. Sees only the seat's own view, so it can't cheat. */
-export type Policy = (view: PlayerView, legalActions: Action[]) => Action;
-
 /**
- * Plays a seat in-process with a policy, after a short delay so it feels natural and never re-enters
- * the room synchronously. Bots are policies.
+ * Plays a seat in-process with a policy (bots live in @mahjong/bots), after a delay so it feels natural
+ * and never re-enters the room synchronously.
  */
 export class PolicyController implements SeatController {
   private timer: ReturnType<typeof setTimeout> | null = null;
@@ -48,16 +46,17 @@ export class PolicyController implements SeatController {
   constructor(
     private readonly policy: Policy,
     private readonly submit: (action: Action, stateVersion: number) => void,
-    private readonly delayMs: number,
+    private readonly delay: (update: SeatUpdate) => number,
   ) {}
 
-  update({ view, legalActions, stateVersion }: SeatUpdate) {
+  update(update: SeatUpdate) {
     this.dispose();
+    const { view, legalActions, stateVersion } = update;
     if (legalActions.length === 0) return;
     this.timer = setTimeout(() => {
       this.timer = null;
       this.submit(this.policy(view, legalActions), stateVersion);
-    }, this.delayMs);
+    }, this.delay(update));
   }
 
   dispose() {
@@ -66,10 +65,11 @@ export class PolicyController implements SeatController {
   }
 }
 
-/** Random legal moves, taking wins when offered. The lobby's bots play this. */
-export function randomPolicy(random: () => number = Math.random): Policy {
-  return (_view, legalActions) => {
-    const win = legalActions.find((a) => a.type === "win" || a.type === "selfDrawWin");
-    return win ?? legalActions[Math.floor(random() * legalActions.length)]!;
-  };
+/**
+ * How long a bot "thinks", the same at every level so difficulty never means winning the claim race by
+ * being faster: 0.8–2 s to claim or pass, 1–2.5 s on its own turn.
+ */
+export function humanLikeDelay({ view }: SeatUpdate, random: () => number = Math.random): number {
+  const [min, max] = view.phase.kind === "claimWindow" ? [800, 2000] : [1000, 2500];
+  return min + random() * (max - min);
 }

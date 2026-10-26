@@ -1,0 +1,17 @@
+{
+  "name": "@mahjong/bots",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": "./src/index.ts",
+  "scripts": {
+    "typecheck": "tsc -p .",
+    "arena": "tsx src/arena-cli.ts"
+  },
+  "dependencies": {
+    "@mahjong/engine": "*"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}

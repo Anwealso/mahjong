@@ -398,3 +398,46 @@ for no benefit to a group that plays in sessions); saving rooms to a volume so d
 
 **Considered:** synthesising every sound (no files, but tile clacks sound plasticky); countdown ticks;
 sounds for other players' draws; making the claim alert visual only.
+
+
+## D27. Easy / Medium / Hard bots with human-like timing; Hard thinks in a worker thread
+
+**Status:** accepted · 2026-10-25 · full plan in [bots.md](bots.md) · replaces random bots as the default ·
+**the lookahead and worker thread are superseded** by [D28](#d28-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)
+
+- Three levels built on **shanten** (tiles from ready) and **ukeire** (unseen tiles that improve the hand):
+  Easy plays loosely, Medium plays for speed, Hard adds **defence** (danger from opponents' public set
+  counts, melds and discards) and then **Monte Carlo lookahead** for close decisions. Random remains as a
+  hidden level for tests.
+- Every level **always takes a win**, and uses the **same human-like timing** (claims after 0.8–2 s,
+  discards after 1–2.5 s), so difficulty never means winning the claim race by being faster.
+- A room-wide **Bot level** setting (default Medium) used for new bots and dropout replacements, and a
+  per-bot level the host can change in the lobby.
+- Bots live in a new pure package, `packages/bots`, with an **arena** that plays seeded matches between
+  levels; tests check the levels are ordered (Medium > Easy > Random, Hard ≥ Medium).
+- On the server, Easy and Medium decide in-process (well under a millisecond); Hard runs in **one worker
+  thread** with a time budget, falling back to Medium's move if it runs out, so it never delays other
+  rooms' claim races.
+
+**Why:** in Chicken Hand every win is worth the same, so "fastest safe hand" is the whole strategy, and
+shanten/ukeire plus defence capture it cheaply. Equal reaction times keep the first-come claim race fair.
+
+**Considered:** a separate bot service (extra machine and cost), bots in the host's browser (die with the
+tab, tamperable), learned policies (big project for little gain here).
+
+## D28. Hard ships with defence only, in-process: no lookahead, no worker thread
+
+**Status:** accepted · 2026-10-26 · amends [D27](#d27-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread)
+
+- Measured in the arena (paired: same seat, same deals): the Monte Carlo lookahead scored no better than
+  defence alone and cost ~55 ms a decision, so it's **off by default** (kept in `packages/bots` as an
+  experiment).
+- Without it, every level decides in under a millisecond, so all bots run **in-process**; the planned
+  worker thread isn't needed.
+- Hard's defence is limited to the two situations where it measurably helped (folding when far from ready
+  against someone one set from winning; preferring safe tiles when one from ready). Broader caution made
+  Hard lose to Medium.
+- Changing the room's bot level changes **every** bot already seated (the per-bot picker then adjusts
+  individual bots), which is simpler to understand than "only new bots".
+
+**Why:** keep what the numbers support, and keep the server simple.

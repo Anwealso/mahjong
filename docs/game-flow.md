@@ -13,7 +13,7 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 | Ready countdown between hands | 10 s (paused while a seat is empty or its player is offline) |
 | Idle player (no move when it's their decision) | 60 s, then the host may replace them |
 | Wind-break vote | no time limit; after 30 s the host may remove someone who hasn't voted |
-| Bot thinking time | 1.5 s |
+| Bot thinking time (every level) | 0.8–2 s to claim or pass, 1–2.5 s on its own turn |
 | Room with nobody connected | deleted after 30 min |
 | Disconnected watcher (not seated) | dropped from the room after 10 min |
 
@@ -45,6 +45,7 @@ for the whole game (also while paused) and carry over to the next game.
 | Setting | Default | Effect |
 |---|---|---|
 | Dealer keeps the deal | **Off** | Off: the deal passes on after every hand, so a wind is exactly 4 hands. On: the dealer keeps the deal after a dealer win or a draw |
+| Bot level | **Medium** | Easy, Medium or Hard ([bots.md](bots.md)). Used for new bots and for bots that take over from people. The host can change it **before a game or while paused**, and it changes every bot; the host can also set one bot's level on its seat card |
 
 ## Dealer, winds, and rounds
 
@@ -102,12 +103,11 @@ Shown when the game is over, and to anyone who leaves at a wind break:
 
 The host clicks **New game** to return to the lobby with all scores reset (seats stay as they are).
 
-## Known limitation: random bots rarely win
+## Bots
 
-The bots play random legal moves, so they almost never complete a hand. At a table that's mostly bots,
-most hands end as draws. That's why **Dealer keeps the deal** is off by default: otherwise the dealer would
-keep the deal through draw after draw and a wind could take a very long time to finish. Smarter bots
-(milestone 7) would fix the underlying problem; they're just new policies.
+Bots play at the room's **bot level** (Easy, Medium or Hard; see [bots.md](bots.md)) with the same
+human-like timing at every level. **Dealer keeps the deal** is off by default partly because the
+original random bots never won, so the dealer never moved; the smarter bots finish almost every hand.
 
 ## Dropouts during a hand
 

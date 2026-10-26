@@ -13,21 +13,30 @@ import {
   startHand,
   type Action,
   type GameEvent,
-  type GameSettings,
   type GameState,
   type HandState,
   type RuleConfig,
   type Seat,
   type TileId,
 } from "@mahjong/engine";
-import type { ErrorCode, LobbyMessage, MemberInfo, RoomPhase, SeatIssue, SeatInfo } from "@mahjong/protocol";
-import { HumanController, PolicyController, randomPolicy, type Connection, type SeatController } from "./controllers";
+import { policyFor } from "@mahjong/bots";
+import type {
+  BotLevel,
+  ErrorCode,
+  LobbyMessage,
+  MemberInfo,
+  RoomPhase,
+  RoomSettings,
+  SeatIssue,
+  SeatInfo,
+} from "@mahjong/protocol";
+import { HumanController, humanLikeDelay, PolicyController, type Connection, type SeatController } from "./controllers";
 
 export interface RoomOptions {
   /** How long a claim window stays open at most. */
   claimWindowMs: number;
-  /** How long a bot waits before acting. */
-  botDelayMs: number;
+  /** A fixed bot thinking time (tests, BOT_DELAY_MS). Normally bots take a human-like, randomised time. */
+  botDelayMs?: number;
   /** Countdown between hands before the next one is dealt anyway. */
   readyMs: number;
   /** How long a person can sit on a decision before the host may replace them. */
@@ -47,7 +56,6 @@ export interface RoomOptions {
 
 export const DEFAULT_ROOM_OPTIONS: RoomOptions = {
   claimWindowMs: 5000,
-  botDelayMs: 1500,
   readyMs: 10_000,
   idleMs: 60_000,
   voteRemoveMs: 30_000,
@@ -69,6 +77,7 @@ interface Member {
   connection: Connection | null;
   /** A server-side bot: never connected, plays its seat with a policy. */
   bot: boolean;
+  botLevel: BotLevel | null;
   /** When their connection closed, for dropping long-gone watchers. */
   disconnectedAt: number | null;
 }
@@ -95,7 +104,7 @@ export class Room {
   private readonly reserved: (Reservation | null)[] = EMPTY(null);
   private hostId: string | null = null;
   private phase: RoomPhase = "lobby";
-  private settings: GameSettings = DEFAULT_GAME_SETTINGS;
+  private settings: RoomSettings = { ...DEFAULT_GAME_SETTINGS, botLevel: "medium" };
   private game: GameState | null = null;
   private hand: HandState | null = null;
   /** Bumped whenever something visible happens. Actions must quote the version they were made against. */
@@ -142,7 +151,7 @@ export class Room {
       member.connection = connection;
       member.disconnectedAt = null;
     } else {
-      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection, bot: false, disconnectedAt: null };
+      member = { id: randomUUID().slice(0, 8), name, token: randomUUID(), seat: null, connection, bot: false, botLevel: null, disconnectedAt: null };
       this.members.set(member.id, member);
     }
     this.hostId ??= member.id;
@@ -256,19 +265,41 @@ export class Room {
     return null;
   }
 
-  /** Before a game: the host changes the game settings. They're fixed once the game starts. */
-  updateSettings(memberId: string, settings: Partial<GameSettings>): RoomError | null {
-    const denied = this.requireHost(memberId) ?? this.requirePhase(["lobby"]);
+  /**
+   * The host changes settings. Game settings only before a game (they're fixed once it starts); the bot
+   * level also while paused, and it changes every bot in the room.
+   */
+  updateSettings(memberId: string, settings: Partial<RoomSettings>): RoomError | null {
+    const gameSettings = settings.dealerKeepsDeal !== undefined;
+    const denied = this.requireHost(memberId) ?? this.requirePhase(gameSettings ? ["lobby"] : ["lobby", "paused"]);
     if (denied) return denied;
     this.settings = { ...this.settings, ...settings };
+    if (settings.botLevel) for (const seat of SEATS) if (this.isBot(seat)) this.setLevel(seat, settings.botLevel);
     this.broadcastLobby();
     return null;
+  }
+
+  /** The host changes one bot's level (before a game, or while paused). */
+  setBotLevel(memberId: string, seat: Seat, level: BotLevel): RoomError | null {
+    const denied = this.requireHost(memberId) ?? this.requirePhase(["lobby", "paused"]);
+    if (denied) return denied;
+    if (!this.isBot(seat)) return error("notAllowed", "That seat isn't a bot");
+    this.setLevel(seat, level);
+    this.broadcastLobby();
+    return null;
+  }
+
+  private setLevel(seat: Seat, level: BotLevel) {
+    const bot = this.members.get(this.seats[seat]!)!;
+    bot.botLevel = level;
+    bot.name = botName(level, seat);
+    this.attach(seat);
   }
 
   startGame(memberId: string): RoomError | null {
     const denied = this.requireHost(memberId) ?? this.requirePhase(["lobby"]) ?? this.requireFull();
     if (denied) return denied;
-    this.game = newGame(this.options.firstDealer?.() ?? (randomInt(4) as Seat), this.settings);
+    this.game = newGame(this.options.firstDealer?.() ?? (randomInt(4) as Seat), { dealerKeepsDeal: this.settings.dealerKeepsDeal });
     this.dealHand();
     return null;
   }
@@ -555,18 +586,19 @@ export class Room {
     this.attach(seat);
   }
 
-  /** Put a new bot in a seat (unseating whoever was there). */
+  /** Put a new bot in a seat (unseating whoever was there), at the room's bot level. */
   private seatBot(seat: Seat) {
     const holder = this.seats[seat] ? this.members.get(this.seats[seat]!)! : null;
     if (holder?.bot) return;
     if (holder) holder.seat = null;
     const bot: Member = {
       id: randomUUID().slice(0, 8),
-      name: `Bot ${seat + 1}`,
+      name: botName(this.settings.botLevel, seat),
       token: randomUUID(),
       seat,
       connection: null,
       bot: true,
+      botLevel: this.settings.botLevel,
       disconnectedAt: null,
     };
     this.members.set(bot.id, bot);
@@ -595,10 +627,11 @@ export class Room {
     const holder = this.seats[seat] ? this.members.get(this.seats[seat]!)! : null;
     if (!holder) return null;
     if (holder.bot) {
+      const fixed = this.options.botDelayMs;
       return new PolicyController(
-        randomPolicy(),
+        policyFor(holder.botLevel ?? "medium"),
         (action, stateVersion) => this.submit(seat, action, stateVersion),
-        this.options.botDelayMs,
+        fixed === undefined ? humanLikeDelay : () => fixed,
       );
     }
     return holder.connection ? new HumanController(holder.connection) : null;
@@ -684,6 +717,7 @@ export class Room {
       seat: m.seat,
       connected: m.connection !== null,
       bot: m.bot,
+      botLevel: m.botLevel,
     }));
     const seatInfo: SeatInfo[] = SEATS.map((s) => ({
       issue: this.seatIssue(s),
@@ -708,3 +742,6 @@ export class Room {
     for (const m of this.members.values()) m.connection?.send(message);
   }
 }
+
+const LEVEL_NAMES: Record<BotLevel, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
+const botName = (level: BotLevel, seat: Seat) => `${LEVEL_NAMES[level]} Bot ${seat + 1}`;

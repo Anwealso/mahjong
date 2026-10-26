@@ -3,8 +3,9 @@ import { fileURLToPath } from "node:url";
 import { startServer } from "./app";
 import { DEFAULT_ROOM_OPTIONS } from "./room";
 
-// BOT_DELAY_MS speeds bots up for trying things out locally (e.g. BOT_DELAY_MS=100 npm run dev).
-const botDelayMs = Number(process.env.BOT_DELAY_MS ?? DEFAULT_ROOM_OPTIONS.botDelayMs);
+// BOT_DELAY_MS gives bots a fixed, usually quicker, thinking time for trying things out locally
+// (e.g. BOT_DELAY_MS=100 npm run dev). Normally they take a human-like time.
+const botDelayMs = process.env.BOT_DELAY_MS ? Number(process.env.BOT_DELAY_MS) : undefined;
 // The built client, if there is one (production). The bundle lives in packages/server/dist, so this is
 // packages/client/dist; CLIENT_DIST overrides it. In development Vite serves the client instead.
 const clientDist = process.env.CLIENT_DIST ?? fileURLToPath(new URL("../../client/dist", import.meta.url));

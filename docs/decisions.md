@@ -443,7 +443,25 @@ tab, tamperable), learned policies (big project for little gain here).
 
 **Why:** keep what the numbers support, and keep the server simple.
 
-## D29. Hosting only passes to people; the room closes when its last person leaves
+## D29. Everyone's hands are shown at the end of a hand, with a host setting to hide them
+
+**Status:** accepted · 2026-10-26
+
+- At the end of every hand the result panel lists each other player's hand face up (locked sets, then the
+  concealed tiles), under the winner's formed-up hand. Their seats show them face up too.
+- A room setting, **Show everyone's hands** (`revealHands`), **on by default**. The host can change it
+  before a game or while paused (it doesn't affect play or scoring, so it needn't be fixed per game).
+- With it off, the server **doesn't send** the other hands (the view has `null` for them), rather than the
+  client just not drawing them, so nobody can read them from the network traffic. You always see your own
+  hand and the winner's.
+
+**Why:** seeing what everyone was holding is half the fun of the post-mortem, but the seats' face-up tiles
+were mostly hidden behind the result panel. Some tables prefer the traditional "losers don't show" rule.
+
+**Considered:** a per-player "show my hand" button (extra step every hand), showing them only at the seats
+(covered by the panel).
+
+## D30. Hosting only passes to people; the room closes when its last person leaves
 
 **Status:** accepted · 2026-10-26 · amends [D23](#d23-host-seat-owned-scores-and-handling-dropouts) · details in [game-flow.md](game-flow.md#the-host)
 

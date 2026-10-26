@@ -42,39 +42,6 @@ export function LobbyScreen() {
         </section>
       )}
 
-      {(phase === "lobby" || phase === "paused") && (
-        <section className="settings">
-          <h2>Game settings</h2>
-          <label className={isHost && phase === "lobby" ? undefined : "muted"}>
-            <input
-              type="checkbox"
-              checked={(game?.settings ?? lobby.settings).dealerKeepsDeal}
-              disabled={!isHost || phase !== "lobby"}
-              onChange={(e) => send({ t: "updateSettings", settings: { dealerKeepsDeal: e.target.checked } })}
-            />
-            Dealer keeps the deal after a dealer win or a draw
-          </label>
-          <p className="muted small">
-            {(game?.settings ?? lobby.settings).dealerKeepsDeal
-              ? "Traditional: winds last until every seat has lost the deal."
-              : "The deal passes on after every hand, so each wind is exactly four hands."}
-            {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
-          </p>
-          <label className={isHost ? undefined : "muted"}>
-            Bot level
-            <LevelPicker
-              value={lobby.settings.botLevel}
-              disabled={!isHost}
-              onChange={(botLevel) => send({ t: "updateSettings", settings: { botLevel } })}
-            />
-          </label>
-          <p className="muted small">
-            {LEVEL_HINTS[lobby.settings.botLevel]} Used for new bots and for bots that take over from people;
-            changing it changes every bot.
-          </p>
-        </section>
-      )}
-
       <div className="seats">
         {SEATS.map((seat) => {
           const m = room.memberAt(seat);
@@ -188,6 +155,32 @@ export function LobbyScreen() {
               ? "Traditional: winds last until every seat has lost the deal."
               : "The deal passes on after every hand, so each wind is exactly four hands."}
             {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
+          </p>
+          <label className={isHost ? undefined : "muted"}>
+            Bot level
+            <LevelPicker
+              value={lobby.settings.botLevel}
+              disabled={!isHost}
+              onChange={(botLevel) => send({ t: "updateSettings", settings: { botLevel } })}
+            />
+          </label>
+          <p className="muted small">
+            {LEVEL_HINTS[lobby.settings.botLevel]} Used for new bots and for bots that take over from people;
+            changing it changes every bot.
+          </p>
+          <label className={isHost ? undefined : "muted"}>
+            <input
+              type="checkbox"
+              checked={lobby.settings.revealHands}
+              disabled={!isHost}
+              onChange={(e) => send({ t: "updateSettings", settings: { revealHands: e.target.checked } })}
+            />
+            Show everyone's hands at the end of each hand
+          </label>
+          <p className="muted small">
+            {lobby.settings.revealHands
+              ? "After each hand, everyone's tiles are turned face up so you can see what they had."
+              : "Only the winner's hand is shown; everyone else's stays hidden."}
           </p>
         </section>
       )}

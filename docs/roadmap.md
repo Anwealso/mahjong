@@ -52,7 +52,7 @@ Milestones in build order. Each one should end with passing tests and something 
 - Opponents shown with locked sets face up and their complete concealed sets face down.
 - Floating toolbar above the selection, action bar built from `legalActions`, claim countdown, keyboard
   shortcuts.
-- End-of-hand panel with the result, payments and every hand revealed.
+- End-of-hand panel with the result, payments and every hand revealed (host setting to hide the losers' hands).
 - Not yet: animations, sounds, SVG tiles (milestone 7); dealer rotation and running scores (milestone 5).
 
 ## 5. Full game ✅

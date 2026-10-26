@@ -49,3 +49,16 @@ export function Tile({ kind, size = "md", selected, rings = [], glow, latest, di
     </div>
   );
 }
+
+/**
+ * A face-up tile that starts face down and flips over when it first appears, after `delay` ms (revealing
+ * hands at the end of a hand).
+ */
+export function FlipTile({ delay, ...props }: TileProps & { kind: TileKind; delay: number }) {
+  return (
+    <div className="tile-flip" style={{ animationDelay: `${delay}ms` }}>
+      <Tile {...props} />
+      <Tile size={props.size} />
+    </div>
+  );
+}

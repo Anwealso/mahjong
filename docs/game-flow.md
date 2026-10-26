@@ -47,12 +47,13 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 ## Game settings
 
 Set by the host in the lobby **before the game starts**; everyone else sees them read-only. They're fixed
-for the whole game (also while paused) and carry over to the next game.
+for the whole game (also while paused), except where noted, and carry over to the next game.
 
 | Setting | Default | Effect |
 |---|---|---|
 | Dealer keeps the deal | **Off** | Off: the deal passes on after every hand, so a wind is exactly 4 hands. On: the dealer keeps the deal after a dealer win or a draw |
 | Bot level | **Medium** | Easy, Medium or Hard ([bots.md](bots.md)). Used for new bots and for bots that take over from people. The host can change it **before a game or while paused**, and it changes every bot; the host can also set one bot's level on its seat card |
+| Show everyone's hands | **On** | On: at the end of each hand everyone's tiles are turned face up, at their seats and in the result panel. Off: only the winner's hand is shown (and you still see your own); the server doesn't send anyone else's. The host can change it **before a game or while paused** |
 
 ## Dealer, winds, and rounds
 
@@ -69,8 +70,12 @@ for the whole game (also while paused) and carry over to the next game.
 ## Between hands
 
 When a hand ends, everyone sees the result: who won and how, the hand's payments, and the running totals.
-All hands are revealed, and the winner's hand is formed up into its sets and pair (with the winning tile
-highlighted), both at their seat and in the result panel.
+The winner's hand is formed up into its sets and pair (with the winning tile highlighted), both at their
+seat and in the result panel. With **Show everyone's hands** on (the default), every other hand is turned
+face up too, at each seat and listed by name in the result panel (locked sets, then the concealed tiles),
+so everyone can see what the others had. Revealed tiles **flip face up one after another** (rippling
+round the table, and row by row in the panel; no animation with reduced motion). With it off, the other
+hands stay face down.
 
 - Each seated person clicks **Ready**. The next hand is dealt as soon as every seated person is ready, or
   automatically after a **10 s countdown**.

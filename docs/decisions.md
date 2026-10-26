@@ -403,7 +403,7 @@ sounds for other players' draws; making the claim alert visual only.
 ## D27. Easy / Medium / Hard bots with human-like timing; Hard thinks in a worker thread
 
 **Status:** accepted · 2026-10-25 · full plan in [bots.md](bots.md) · replaces random bots as the default ·
-**the lookahead and worker thread are superseded** by [D27](#d27-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)
+**the lookahead and worker thread are superseded** by [D28](#d28-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)
 
 - Three levels built on **shanten** (tiles from ready) and **ukeire** (unseen tiles that improve the hand):
   Easy plays loosely, Medium plays for speed, Hard adds **defence** (danger from opponents' public set
@@ -427,7 +427,7 @@ tab, tamperable), learned policies (big project for little gain here).
 
 ## D28. Hard ships with defence only, in-process: no lookahead, no worker thread
 
-**Status:** accepted · 2026-10-26 · amends [D26](#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread)
+**Status:** accepted · 2026-10-26 · amends [D27](#d27-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread)
 
 - Measured in the arena (paired: same seat, same deals): the Monte Carlo lookahead scored no better than
   defence alone and cost ~55 ms a decision, so it's **off by default** (kept in `packages/bots` as an

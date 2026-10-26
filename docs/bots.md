@@ -1,12 +1,12 @@
 # Bots: plan for Easy / Medium / Hard
 
-**Status: accepted (milestone 7)** as [D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread).
+**Status: accepted (milestone 7)** as [D27](decisions.md#d27-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread).
 The ✅ choices and the answers to the questions at the end are the plan being built.
 
 ## What was built (results)
 
-All three levels are live ([D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread), amended by
-[D27](decisions.md#d27-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)). One arena run, 2,000 hands, one of each level at the
+All three levels are live ([D27](decisions.md#d27-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread), amended by
+[D28](decisions.md#d28-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)). One arena run, 2,000 hands, one of each level at the
 table, seats rotating:
 
 | Level | Win % | Deal-ins | Points / hand |

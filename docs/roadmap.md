@@ -82,7 +82,7 @@ Specified in [game-flow.md](game-flow.md) ([D22](decisions.md#d22-open-ended-gam
 
 ## 7. Later
 
-- ✅ Smarter bots: Easy / Medium / Hard ([bots.md](bots.md), [D26](decisions.md#d26-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread), [D27](decisions.md#d27-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)).
+- ✅ Smarter bots: Easy / Medium / Hard ([bots.md](bots.md), [D27](decisions.md#d27-easy--medium--hard-bots-with-human-like-timing-hard-thinks-in-a-worker-thread), [D28](decisions.md#d28-hard-ships-with-defence-only-in-process-no-lookahead-no-worker-thread)).
 - SVG tile art, sounds, animations, chat.
 - ✅ Sound effects ([sound.md](sound.md), [D26](decisions.md#d26-sound-effects-recorded-cc0-clips-played-from-game-events-lobby-music-to-be-chosen)). Lobby music parked.
 - SVG tile art, animations, chat.

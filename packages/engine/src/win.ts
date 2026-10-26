@@ -1,5 +1,5 @@
 import type { RuleConfig } from "./rules";
-import { canStartChow, isHonor, isTerminal, NUM_KINDS, type TileKind } from "./tiles";
+import { canStartChow, countTiles, isHonor, isTerminal, kindOf, NUM_KINDS, sortTiles, type TileId, type TileKind } from "./tiles";
 
 export type Set =
   | { type: "pung"; kind: TileKind }
@@ -82,6 +82,28 @@ export function isWinningHand(counts: readonly number[], exposedMelds: number, r
     if (rules.sevenPairs && isSevenPairs(counts)) return true;
   }
   return false;
+}
+
+/**
+ * Lay out a winning hand's concealed tiles (winning tile included) as the groups it's made of: its sets,
+ * then the pair. Seven pairs splits into pairs; thirteen orphans is one group. Null if it doesn't win.
+ */
+export function winningGroups(tiles: readonly TileId[]): TileId[][] | null {
+  const counts = countTiles(tiles);
+  const byKind: TileId[][] = Array.from({ length: NUM_KINDS }, () => []);
+  for (const t of sortTiles(tiles)) byKind[kindOf(t)]!.push(t);
+  const take = (kind: TileKind, n: number) => byKind[kind]!.splice(0, n);
+
+  const [standard] = decompose(counts);
+  if (standard) {
+    const sets = standard.sets.map((s) =>
+      s.type === "pung" ? take(s.kind, 3) : [...take(s.kind, 1), ...take(s.kind + 1, 1), ...take(s.kind + 2, 1)],
+    );
+    return [...sets, take(standard.pair, 2)];
+  }
+  if (isSevenPairs(counts)) return byKind.filter((g) => g.length > 0);
+  if (isThirteenOrphans(counts)) return [sortTiles(tiles)];
+  return null;
 }
 
 /**

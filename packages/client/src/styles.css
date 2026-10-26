@@ -366,4 +366,5 @@ select.level {
   background: rgb(0 0 0 / 0.25);
   color: inherit;
 }
-.settings label select.level { margin-left: 4px; }
+.game-settings label select.level { margin-left: 4px; }
+.game-settings p.small + label { margin-top: 14px; }

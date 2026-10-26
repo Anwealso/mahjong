@@ -2,6 +2,7 @@ import { legalActions, projectView, startHand, stackWall, applyAction, parseKind
 import { describe, expect, it } from "vitest";
 import { runArena } from "./arena";
 import { easyPolicy } from "./easy";
+import { hardPolicy } from "./hard";
 import { contestant } from "./levels";
 import { mediumPolicy } from "./medium";
 
@@ -55,4 +56,13 @@ describe("medium", () => {
     }).state;
     expect(easyPolicy(() => 0.99)(projectView(s, 0), legalActions(s, 0))).toEqual({ type: "selfDrawWin" });
   });
+});
+
+describe("hard with lookahead (experimental)", () => {
+  it("makes only legal moves and is deterministic for a seed", () => {
+    const withLookahead = { name: "hard+mc", make: (random: () => number) => hardPolicy({ random, samples: 5 }) };
+    const a = runArena([withLookahead, ...["medium", "medium", "medium"].map(contestant)], 6, 4);
+    const b = runArena([withLookahead, ...["medium", "medium", "medium"].map(contestant)], 6, 4);
+    expect(a.stats).toEqual(b.stats);
+  }, 60_000);
 });

@@ -25,7 +25,7 @@ export function ukeire(counts: number[], lockedMelds: number, unseen: readonly n
  * A drawn tile can only improve the hand if it can pair or run with something held: the same kind, or
  * (suited) a kind within two ranks in the same suit. Skipping the rest roughly halves the work.
  */
-function couldHelp(counts: readonly number[], k: number): boolean {
+export function couldHelp(counts: readonly number[], k: number): boolean {
   if (counts[k]! > 0) return true;
   if (k >= 27) return false;
   const suitStart = k - (k % 9);

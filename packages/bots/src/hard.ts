@@ -1,12 +1,20 @@
 import type { Action, PlayerView } from "@mahjong/engine";
 import { danger, threats } from "./danger";
 import { throwPriority, type DiscardOption, type Situation } from "./evaluate";
+import { lookahead } from "./lookahead";
 import { decide, type DiscardRanker } from "./medium";
 import type { Policy } from "./policy";
 
 export interface HardOptions {
   /** Randomness for the lookahead's sampling. */
   random?: () => number;
+  /** Lookahead: sampled worlds per discard decision (0 = no lookahead). */
+  samples?: number;
+  /** Lookahead: stop sampling after this long (the server sets this; the arena uses `samples` only). */
+  budgetMs?: number;
+  now?: () => number;
+  /** How many of the best-ranked discards the lookahead compares. */
+  candidates?: number;
   /** How much safety counts against speed at [far from ready (threatened), far, one away, ready]. */
   caution?: readonly [number, number, number, number];
 }
@@ -25,8 +33,40 @@ export const DEFAULT_CAUTION = [10, 0, 0.5, 0] as const;
  * ready, it folds and throws the safest tiles.
  */
 export function hardPolicy(options: HardOptions = {}): Policy {
-  const rank = defensiveRanking(options.caution ?? DEFAULT_CAUTION);
+  const defensive = defensiveRanking(options.caution ?? DEFAULT_CAUTION);
+  const samples = options.samples ?? DEFAULT_SAMPLES;
+  const rank: DiscardRanker = samples > 0 ? withLookahead(defensive, { ...options, samples }) : defensive;
   return (view: PlayerView, legal: Action[]) => decide(view, legal, rank);
+}
+
+/**
+ * Off by default. In the arena (2,400 paired hands vs Medium) 40 samples per decision scored no better
+ * than defence alone (+5 vs +31 points, within noise) at ~55 ms a decision: the simplified playouts are
+ * too crude to beat the tuned heuristic. Kept as an experiment to improve on (better playout policy,
+ * more samples); see docs/bots.md.
+ */
+export const DEFAULT_SAMPLES = 0;
+
+/**
+ * Re-order the best few discards by Monte Carlo lookahead. Only when the call is close enough to matter:
+ * the candidates must all keep the hand equally close to ready.
+ */
+function withLookahead(base: DiscardRanker, options: HardOptions & { samples: number }): DiscardRanker {
+  const random = options.random ?? Math.random;
+  return (s, options_) => {
+    const ranked = base(s, options_);
+    const top = ranked.slice(0, options.candidates ?? 3).filter((o) => o.shanten === ranked[0]!.shanten);
+    if (top.length < 2) return ranked;
+    const scores = lookahead(s.view, top.map((o) => o.kind), {
+      random,
+      samples: options.samples,
+      budgetMs: options.budgetMs,
+      now: options.now,
+    });
+    // Stable: ties keep the heuristic's order.
+    const order = top.map((o, i) => ({ o, score: scores[i]!, i })).sort((a, b) => b.score - a.score || a.i - b.i);
+    return [...order.map((x) => x.o), ...ranked.filter((o) => !top.includes(o))];
+  };
 }
 
 /** Medium's ranking, traded off against danger. */

@@ -4,6 +4,7 @@ export * from "./easy";
 export * from "./evaluate";
 export * from "./hard";
 export * from "./levels";
+export * from "./lookahead";
 export * from "./medium";
 export * from "./policy";
 export * from "./random";

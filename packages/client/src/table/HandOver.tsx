@@ -46,17 +46,22 @@ export function HandOver(props: {
       {result.kind === "win" && winningHand && (
         <div className="winning-hand">
           <Melds melds={game.view.players[result.winner]!.melds} size="sm" />
-          <RevealedGroups groups={winningHand} size="sm" winningTile={result.tile} />
+          <RevealedGroups
+            groups={winningHand}
+            size="sm"
+            winningTile={result.tile}
+            flipDelay={result.winner === mySeat ? undefined : 0}
+          />
         </div>
       )}
       {shown.length > 0 && (
         <div className="revealed-hands">
-          {shown.map((seat) => (
+          {shown.map((seat, i) => (
             <div key={seat} className="revealed-hand">
               <span className="who">{nameOf(seat)}</span>
               <div className="revealed-tiles">
                 <Melds melds={game.view.players[seat]!.melds} size="sm" />
-                <RevealedGroups groups={[phase.hands[seat]!]} size="sm" />
+                <RevealedGroups groups={[phase.hands[seat]!]} size="sm" flipDelay={300 * (i + 1)} />
               </div>
             </div>
           ))}

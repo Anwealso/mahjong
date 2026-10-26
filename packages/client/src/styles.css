@@ -262,6 +262,18 @@ kbd {
   from { box-shadow: 0 0 0 2px var(--gold), 0 0 6px 2px var(--gold); }
   to { box-shadow: 0 0 0 3px var(--gold), 0 0 18px 6px var(--gold); }
 }
+/* Revealing: the face (first child) and a back (second) on either side of a card that turns over. */
+.tile-flip { position: relative; transform-style: preserve-3d; animation: tile-flip 0.55s cubic-bezier(0.3, 0.7, 0.4, 1.15) both; }
+.tile-flip > .tile { backface-visibility: hidden; }
+.tile-flip > .tile + .tile { position: absolute; inset: 0; transform: rotateY(180deg); }
+@keyframes tile-flip {
+  from { transform: perspective(500px) rotateY(180deg); }
+  50% { transform: perspective(500px) rotateY(90deg) translateY(-6px); }
+  to { transform: perspective(500px) rotateY(0deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tile-flip { animation: none; }
+}
 .tile-rank { font-size: 1.6rem; font-weight: 700; line-height: 1; }
 .tile-suit { font-size: 1rem; }
 .tile-honor { font-size: 2rem; }

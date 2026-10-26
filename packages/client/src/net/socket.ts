@@ -37,14 +37,6 @@ export class GameSocket {
     });
   }
 
-  /** Drop the current connection and open a fresh one (the server treats the old one as gone). */
-  restart() {
-    const old = this.ws;
-    this.ws = null;
-    old?.close();
-    this.connect();
-  }
-
   send(message: ClientMessage) {
     if (this.ws?.readyState === WebSocket.OPEN) this.ws.send(JSON.stringify(message));
   }

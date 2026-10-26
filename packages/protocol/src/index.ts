@@ -61,6 +61,11 @@ export const clientMessageSchema = z.discriminatedUnion("t", [
    * break, or your own seat back from the bot keeping it for you.
    */
   z.object({ t: z.literal("takeSeat"), seat: seatSchema }),
+  /**
+   * Leave the room for good (your seat is given up as with leaveSeat). If you're the host, hosting passes
+   * to another person; with no other person left, the room is closed.
+   */
+  z.object({ t: z.literal("leaveRoom") }),
   /** Give up your seat. At a wind break a bot takes it over; otherwise it's left empty for the host. */
   z.object({ t: z.literal("leaveSeat") }),
   /** Watcher, during a game: ask the host to let you play. */

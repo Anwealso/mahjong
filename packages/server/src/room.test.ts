@@ -111,6 +111,37 @@ describe("lobby", () => {
     expect(conns[2]!.lobby.hostId).toBe(ids[1]);
   });
 
+  it("a host who leaves the room hands over to a person, connected ones first, never a bot", () => {
+    const room = new Room("TEST", OPTIONS);
+    const [a, b, c] = [new FakeConnection(), new FakeConnection(), new FakeConnection()];
+    const [idA, idB, idC] = [room.join("Ann", undefined, a), room.join("Ben", undefined, b), room.join("Cat", undefined, c)];
+    room.takeSeat(idA, 0);
+    room.addBots(idA);
+    room.disconnect(idB, b);
+    expect(room.leave(idA)).toBe(false);
+    expect(c.lobby.hostId).toBe(idC);
+    expect(c.lobby.members.map((m) => m.name)).not.toContain("Ann");
+    expect(c.lobby.seats[0]).toBeNull();
+    // Only an offline person is left besides bots: they're host when they come back.
+    expect(room.leave(idC)).toBe(false);
+    room.join("Ben", b.token, b);
+    expect(b.lobby.hostId).toBe(idB);
+    room.dispose();
+  });
+
+  it("the room closes once the last person leaves, even with bots still seated", () => {
+    const room = new Room("TEST", OPTIONS);
+    const [a, b] = [new FakeConnection(), new FakeConnection()];
+    const [idA, idB] = [room.join("Ann", undefined, a), room.join("Ben", undefined, b)];
+    room.takeSeat(idA, 0);
+    room.addBots(idA);
+    expect(room.leave(idB)).toBe(false);
+    expect(room.hasPeople).toBe(true);
+    expect(room.leave(idA)).toBe(true);
+    expect(room.hasPeople).toBe(false);
+    room.dispose();
+  });
+
   it("drops disconnected watchers after a while, but not seated players", () => {
     const { room, conns, ids } = setup(undefined, { watcherTimeoutMs: 1000 });
     const zoe = new FakeConnection();

@@ -460,3 +460,22 @@ were mostly hidden behind the result panel. Some tables prefer the traditional "
 
 **Considered:** a per-player "show my hand" button (extra step every hand), showing them only at the seats
 (covered by the panel).
+
+## D30. Hosting only passes to people; the room closes when its last person leaves
+
+**Status:** accepted · 2026-10-26 · amends [D23](#d23-host-seat-owned-scores-and-handling-dropouts) · details in [game-flow.md](game-flow.md#the-host)
+
+- **Leave room** is now a real message (`leaveRoom`): the member is removed from the room, giving up their
+  seat as with Leave seat. Before, the client just dropped its socket and the server treated it as a
+  disconnect, so the leaver stayed in the room (and kept their seat).
+- A leaving host hands over to the longest-present person still in the room, connected ones first. Bots are
+  never host.
+- If no person is left (only bots, or nobody), the room is **deleted at once** rather than after the 30 min
+  idle sweep, so a bots-only table doesn't linger and the code can't be rejoined.
+- A plain disconnect still keeps the room for 30 min, so a refresh or dropped Wi-Fi doesn't lose the game.
+
+**Why:** a room with only bots in it has nobody who can run it; keeping it around just holds a room slot.
+Counting offline people as "still here" avoids throwing away the game of someone whose Wi-Fi blipped.
+
+**Considered:** deleting the room whenever no *connected* person is left when the host leaves (simpler, but
+destroys a game an offline player is about to return to).

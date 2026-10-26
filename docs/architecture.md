@@ -223,7 +223,8 @@ Code: `packages/server/src`. `app.ts` (HTTP + WebSocket wiring), `registry.ts` (
   `localStorage`. Joining again with that token reclaims the same member and seat (from the bot keeping it,
   if the host had replaced them) and a fresh snapshot is sent. If the same member connects twice (say, two tabs), the newer
   connection wins.
-- **Lifecycle**: every minute, rooms with nobody connected and no activity for 30 minutes are deleted, and
+- **Lifecycle**: a room is deleted as soon as its last person sends `leaveRoom` (bots don't keep it alive;
+  [D29](decisions.md#d29-hosting-only-passes-to-people-the-room-closes-when-its-last-person-leaves)). Every minute, rooms with nobody connected and no activity for 30 minutes are deleted, and
   watchers who disconnected more than 10 minutes ago are dropped from the rest (seated people and anyone a
   bot is keeping a seat for stay). A restart loses in-progress games ([D25](decisions.md#d25-flyio-in-sydney-one-machine-that-stops-when-idle-deploys-from-github-actions)): on SIGTERM/SIGINT the
   server sends everyone `serverRestarting` before closing. Persisting `seed + action log` would make games

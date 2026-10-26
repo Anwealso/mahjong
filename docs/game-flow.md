@@ -14,7 +14,7 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 | Idle player (no move when it's their decision) | 60 s, then the host may replace them |
 | Wind-break vote | no time limit; after 30 s the host may remove someone who hasn't voted |
 | Bot thinking time (every level) | 0.8–2 s to claim or pass, 1–2.5 s on its own turn |
-| Room with nobody connected | deleted after 30 min |
+| Room with nobody connected | deleted after 30 min (at once when its last person clicks **Leave room**) |
 | Disconnected watcher (not seated) | dropped from the room after 10 min |
 
 ## The host
@@ -22,7 +22,13 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 - The member who **creates the room** is the host (shown with a crown).
 - If the host disconnects or leaves the room, the connected human who has been in the room longest becomes
   host. Hosting doesn't pass back when they return.
-- Bots are never host.
+- Hosting only ever passes to a person: **bots are never host**.
+- **Leave room** takes you out of the room for good (your seat is given up, as with leaving your seat). If
+  the host leaves and no one else is connected, hosting passes to a person who is still in the room but
+  offline (they're host when they come back). If no other person is in the room at all (only bots, or
+  nobody), the **room is deleted** straight away; its code stops working.
+- Just disconnecting (closing the tab, losing Wi-Fi) doesn't delete the room: it waits 30 min for people to
+  come back.
 
 ## Seats and scores
 

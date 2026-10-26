@@ -1,4 +1,5 @@
 import { SEATS, seatWind } from "@mahjong/engine";
+import type { BotLevel } from "@mahjong/protocol";
 import { useRoom } from "../net/room";
 import { useStore } from "../net/store";
 import { Scoreboard, WIND_GLYPHS, WIND_NAMES } from "./Scoreboard";

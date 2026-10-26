@@ -39,11 +39,13 @@ export function Table({ game }: { game: GameSnapshot }) {
     view.phase.kind === "awaitDiscard" || view.phase.kind === "claimed" ? view.phase.seat : null;
   const revealed = view.phase.kind === "handOver" ? view.phase.hands : null;
   const win = view.phase.kind === "handOver" && view.phase.result.kind === "win" ? view.phase.result : null;
-  // The winner's hand is formed up into its sets; everyone else's is just turned face up.
+  // The winner's hand is formed up into its sets (keeping the groups you made, if it's yours); everyone
+  // else's is just turned face up.
   const revealedGroups = (seat: Seat): TileId[][] | null => {
     const hand = revealed?.[seat];
     if (!hand) return null;
-    return (seat === win?.winner && winningGroups(hand)) || [hand];
+    const preferred = seat === me ? controls.arrangement.groups : [];
+    return (seat === win?.winner && winningGroups(hand, preferred)) || [hand];
   };
   const offer = view.phase.kind === "claimWindow" ? view.phase.tile : null;
   const canClaim = game.legalActions.some((a) => a.type === "claim");
@@ -100,7 +102,9 @@ export function Table({ game }: { game: GameSnapshot }) {
       </div>
 
       <ActionBar commands={controls.barCommands} status={statusLine(game, nameOf)} onSort={controls.sort} />
-      {view.phase.kind === "handOver" && <HandOver game={game} room={room} nameOf={nameOf} />}
+      {view.phase.kind === "handOver" && (
+        <HandOver game={game} room={room} nameOf={nameOf} winningHand={win ? revealedGroups(win.winner) : null} />
+      )}
       <HostPrompts room={room} nameOf={nameOf} />
       <button className="leave-table subtle" onClick={leave}>
         Leave table

@@ -67,7 +67,9 @@ When a hand ends, everyone sees the result: who won and how, the hand's payments
 The winner's hand is formed up into its sets and pair (with the winning tile highlighted), both at their
 seat and in the result panel. With **Show everyone's hands** on (the default), every other hand is turned
 face up too, at each seat and listed by name in the result panel (locked sets, then the concealed tiles),
-so everyone can see what the others had. With it off, the other hands stay face down.
+so everyone can see what the others had. Revealed tiles **flip face up one after another** (rippling
+round the table, and row by row in the panel; no animation with reduced motion). With it off, the other
+hands stay face down.
 
 - Each seated person clicks **Ready**. The next hand is dealt as soon as every seated person is ready, or
   automatically after a **10 s countdown**.

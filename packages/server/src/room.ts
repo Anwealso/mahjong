@@ -104,7 +104,7 @@ export class Room {
   private readonly reserved: (Reservation | null)[] = EMPTY(null);
   private hostId: string | null = null;
   private phase: RoomPhase = "lobby";
-  private settings: RoomSettings = { ...DEFAULT_GAME_SETTINGS, botLevel: "medium" };
+  private settings: RoomSettings = { ...DEFAULT_GAME_SETTINGS, botLevel: "medium", revealHands: true };
   private game: GameState | null = null;
   private hand: HandState | null = null;
   /** Bumped whenever something visible happens. Actions must quote the version they were made against. */
@@ -267,7 +267,7 @@ export class Room {
 
   /**
    * The host changes settings. Game settings only before a game (they're fixed once it starts); the bot
-   * level also while paused, and it changes every bot in the room.
+   * level (it changes every bot in the room) and revealing hands also while paused.
    */
   updateSettings(memberId: string, settings: Partial<RoomSettings>): RoomError | null {
     const gameSettings = settings.dealerKeepsDeal !== undefined;
@@ -702,7 +702,7 @@ export class Room {
     const hand = this.hand!;
     return {
       stateVersion: this.version,
-      view: projectView(hand, seat),
+      view: projectView(hand, seat, { revealHands: this.settings.revealHands }),
       legalActions: this.phase === "hand" ? legalActions(hand, seat) : [],
       events: projectEvents(events, seat),
       claimMsLeft: this.claimDeadline === null ? null : Math.max(0, this.claimDeadline - Date.now()),

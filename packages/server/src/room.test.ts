@@ -189,7 +189,25 @@ describe("bot levels", () => {
     nextSeatWins(ctx, 0);
     ctx.room.returnToLobby(ctx.ids[0]!);
     expect(ctx.room.updateSettings(ctx.ids[0]!, { botLevel: "easy" })).toBeNull();
+    expect(ctx.room.updateSettings(ctx.ids[0]!, { revealHands: false })).toBeNull();
     expect(ctx.room.updateSettings(ctx.ids[0]!, { dealerKeepsDeal: true })?.code).toBe("notAllowed");
+  });
+
+  it("everyone's hands are shown at the end of a hand unless the host turns it off", () => {
+    const revealed = (conn: FakeConnection) => {
+      const { phase } = conn.state.view;
+      return phase.kind === "handOver" ? phase.hands.map((h) => h !== null) : null;
+    };
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    expect(revealed(ctx.conns[2]!)).toEqual([true, true, true, true]);
+
+    const off = setup(NEXT_WINS);
+    expect(off.room.updateSettings(off.ids[1]!, { revealHands: false })?.code).toBe("notHost");
+    expect(off.room.updateSettings(off.ids[0]!, { revealHands: false })).toBeNull();
+    off.room.startGame(off.ids[0]!);
+    nextSeatWins(off, 0);
+    expect(revealed(off.conns[2]!)).toEqual([false, true, true, false]); // the winner's and your own
   });
 
   it("hard bots play whole hands", async () => {

@@ -388,6 +388,13 @@ describe("views", () => {
     expect(projectView(state, 3).phase).toEqual({ kind: "claimed", seat: 2, from: 0, tile: (state.phase as { tile: TileId }).tile });
   });
 
+  it("reveals every hand at the end of the hand, or only yours and the winner's", () => {
+    const state = act(setup({ hands: ["123c 456c 789c 123d 55d", ...QUIET] }), 0, { type: "selfDrawWin" });
+    const hands = state.players.map((p) => p.hand);
+    expect(projectView(state, 2).phase).toMatchObject({ kind: "handOver", hands });
+    expect(projectView(state, 2, { revealHands: false }).phase).toMatchObject({ hands: [hands[0], null, hands[2], null] });
+  });
+
   it("hides other players' drawn tiles in events", () => {
     const state = setup({ hands: ["5b 147c 258d 369b ESWN", ...QUIET] });
     const result = applyAction(state, 0, { type: "discard", tile: tile(state, 0, "5b") });

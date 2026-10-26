@@ -5,7 +5,8 @@ import { formatPoints, useCountdown, WIND_NAMES } from "../screens/Scoreboard";
 import { Melds, RevealedGroups } from "./Melds";
 
 /**
- * The result of the hand, with running totals. Between hands everyone readies up (the next hand is dealt
+ * The result of the hand: the winning hand, everyone else's hand face up (unless the host turned that
+ * off), and the payments with running totals. Between hands everyone readies up (the next hand is dealt
  * after a 10 s countdown anyway); after the last hand of a wind it leads to the wind break instead.
  */
 export function HandOver(props: {
@@ -35,6 +36,9 @@ export function HandOver(props: {
   const windBreak = lobby.phase === "windBreak";
   const ready = mySeat !== null && lobby.seatInfo[mySeat]!.ready;
   const blocked = SEATS.filter((s) => lobby.seatInfo[s]!.issue !== null);
+  // Other players' hands; the winner's is shown above, and yours is in front of you.
+  const others = SEATS.filter((s) => s !== mySeat && !(result.kind === "win" && s === result.winner));
+  const shown = others.filter((s) => phase.hands[s]);
 
   return (
     <div className="hand-over">
@@ -43,6 +47,19 @@ export function HandOver(props: {
         <div className="winning-hand">
           <Melds melds={game.view.players[result.winner]!.melds} size="sm" />
           <RevealedGroups groups={winningHand} size="sm" winningTile={result.tile} />
+        </div>
+      )}
+      {shown.length > 0 && (
+        <div className="revealed-hands">
+          {shown.map((seat) => (
+            <div key={seat} className="revealed-hand">
+              <span className="who">{nameOf(seat)}</span>
+              <div className="revealed-tiles">
+                <Melds melds={game.view.players[seat]!.melds} size="sm" />
+                <RevealedGroups groups={[phase.hands[seat]!]} size="sm" />
+              </div>
+            </div>
+          ))}
         </div>
       )}
       <table className="scoreboard">

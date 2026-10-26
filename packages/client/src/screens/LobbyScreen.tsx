@@ -168,6 +168,20 @@ export function LobbyScreen() {
             {LEVEL_HINTS[lobby.settings.botLevel]} Used for new bots and for bots that take over from people;
             changing it changes every bot.
           </p>
+          <label className={isHost ? undefined : "muted"}>
+            <input
+              type="checkbox"
+              checked={lobby.settings.revealHands}
+              disabled={!isHost}
+              onChange={(e) => send({ t: "updateSettings", settings: { revealHands: e.target.checked } })}
+            />
+            Show everyone's hands at the end of each hand
+          </label>
+          <p className="muted small">
+            {lobby.settings.revealHands
+              ? "After each hand, everyone's tiles are turned face up so you can see what they had."
+              : "Only the winner's hand is shown; everyone else's stays hidden."}
+          </p>
         </section>
       )}
     </main>

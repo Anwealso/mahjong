@@ -220,6 +220,18 @@ kbd {
 }
 .hand-over h2 { margin: 0 0 12px; font-size: 1.2rem; }
 .winning-hand { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.revealed-hands {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 8px 14px;
+  margin-bottom: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgb(255 255 255 / 0.12);
+}
+.revealed-hand { display: contents; }
+.revealed-hand .who { font-size: 0.9rem; opacity: 0.85; }
+.revealed-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
 .hand-over ul { margin: 0; padding-left: 18px; line-height: 1.6; }
 .hand-over-buttons { display: flex; gap: 10px; margin-top: 16px; }
 

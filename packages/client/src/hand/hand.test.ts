@@ -18,6 +18,17 @@ describe("arrangement", () => {
     expect(drawn.loose).toEqual([...moved.loose, tile("9b")]);
   });
 
+  it("puts the drawn tile last, even when it's dealt with the rest of the hand", () => {
+    const a = reconcile(EMPTY_ARRANGEMENT, hand);
+    const drawn = reconcile(a, [tile("1c", 1), ...hand], tile("1c", 1));
+    expect(drawn.loose).toEqual([...hand, tile("1c", 1)]);
+    const dealt = reconcile(EMPTY_ARRANGEMENT, hand, tile("1c"));
+    expect(dealt.loose).toEqual([...hand.slice(1), tile("1c")]);
+    // Once placed, it stays where the player drags it.
+    const moved = moveLoose(drawn, tile("1c", 1), tile("1c"));
+    expect(reconcile(moved, [tile("1c", 1), ...hand], tile("1c", 1))).toBe(moved);
+  });
+
   it("returns the same object when nothing changed", () => {
     const a = reconcile(EMPTY_ARRANGEMENT, hand);
     expect(reconcile(a, hand)).toBe(a);

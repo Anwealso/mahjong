@@ -21,7 +21,7 @@ export interface Command {
 export function useTableControls(game: GameSnapshot, storageKey: string, act: (action: Action) => void) {
   const { view, legalActions } = game;
   const { phase } = view;
-  const [arrangement, setArrangement] = useArrangement(storageKey, view.hand);
+  const [arrangement, setArrangement] = useArrangement(storageKey, view.hand, view.lastDrawn);
   const [selection, setSelection] = useState<TileId[]>([]);
   const [chosen, setChosen] = useState<string | null>(null);
 

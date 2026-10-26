@@ -366,5 +366,17 @@ select.level {
   background: rgb(0 0 0 / 0.25);
   color: inherit;
 }
-.game-settings label select.level { margin-left: 4px; }
-.game-settings p.small + label { margin-top: 14px; }
+.game-settings .setting { display: grid; gap: 8px; margin-top: 16px; }
+.game-settings p.small.flush { margin-left: 0; }
+.segments {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  max-width: 360px;
+  padding: 3px;
+  border-radius: 10px;
+  background: rgb(0 0 0 / 0.25);
+}
+.segments button { padding: 6px 12px; border-radius: 7px; background: none; color: inherit; font-weight: 500; }
+.segments button.on { background: #f2efe6; color: #1b1b1b; font-weight: 600; box-shadow: 0 1px 3px rgb(0 0 0 / 0.3); }
+.segments button:disabled { opacity: 1; cursor: default; }

@@ -156,15 +156,15 @@ export function LobbyScreen() {
               : "The deal passes on after every hand, so each wind is exactly four hands."}
             {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
           </p>
-          <label className={isHost ? undefined : "muted"}>
-            Bot level
-            <LevelPicker
+          <div className={`setting${isHost ? "" : " muted"}`}>
+            <span id="bot-level">Bot level</span>
+            <LevelSegments
               value={lobby.settings.botLevel}
               disabled={!isHost}
               onChange={(botLevel) => send({ t: "updateSettings", settings: { botLevel } })}
             />
-          </label>
-          <p className="muted small">
+          </div>
+          <p className="muted small flush">
             {LEVEL_HINTS[lobby.settings.botLevel]} Used for new bots and for bots that take over from people;
             changing it changes every bot.
           </p>
@@ -173,6 +173,9 @@ export function LobbyScreen() {
     </main>
   );
 }
+
+const BOT_LEVELS: BotLevel[] = ["easy", "medium", "hard"];
+const LEVEL_LABELS: Record<BotLevel, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
 const LEVEL_HINTS: Record<BotLevel, string> = {
   easy: "Easy bots play like beginners.",
@@ -188,9 +191,31 @@ function LevelPicker(props: { value: BotLevel; disabled?: boolean; onChange(leve
       disabled={props.disabled}
       onChange={(e) => props.onChange(e.target.value as BotLevel)}
     >
-      <option value="easy">Easy</option>
-      <option value="medium">Medium</option>
-      <option value="hard">Hard</option>
+      {BOT_LEVELS.map((level) => (
+        <option key={level} value={level}>
+          {LEVEL_LABELS[level]}
+        </option>
+      ))}
     </select>
+  );
+}
+
+/** The room's bot level as a segmented control: one pill per level, the chosen one lit. */
+function LevelSegments(props: { value: BotLevel; disabled?: boolean; onChange(level: BotLevel): void }) {
+  return (
+    <div className="segments" role="radiogroup" aria-labelledby="bot-level">
+      {BOT_LEVELS.map((level) => (
+        <button
+          key={level}
+          role="radio"
+          aria-checked={props.value === level}
+          className={props.value === level ? "on" : undefined}
+          disabled={props.disabled}
+          onClick={() => props.onChange(level)}
+        >
+          {LEVEL_LABELS[level]}
+        </button>
+      ))}
+    </div>
   );
 }

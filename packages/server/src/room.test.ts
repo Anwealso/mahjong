@@ -161,6 +161,52 @@ describe("bots", () => {
   }, 10_000);
 });
 
+describe("bot levels", () => {
+  it("bots join at the room's level; the host can change it for all bots, or one at a time", () => {
+    const room = new Room("TEST", OPTIONS);
+    const ann = new FakeConnection();
+    const annId = room.join("Ann", undefined, ann);
+    const benId = room.join("Ben", undefined, new FakeConnection());
+    room.takeSeat(annId, 0);
+    room.addBots(annId);
+    const bots = () => ann.lobby.members.filter((m) => m.bot).map((m) => [m.seat, m.botLevel, m.name]);
+    expect(bots()).toEqual([[1, "medium", "Medium Bot 2"], [2, "medium", "Medium Bot 3"], [3, "medium", "Medium Bot 4"]]);
+
+    expect(room.updateSettings(benId, { botLevel: "hard" })?.code).toBe("notHost");
+    expect(room.updateSettings(annId, { botLevel: "hard" })).toBeNull();
+    expect(bots().map((b) => b[1])).toEqual(["hard", "hard", "hard"]);
+    expect(room.setBotLevel(annId, 2, "easy")).toBeNull();
+    expect(bots()[1]).toEqual([2, "easy", "Easy Bot 3"]);
+    expect(room.setBotLevel(annId, 0, "easy")?.code).toBe("notAllowed"); // a person, not a bot
+
+    room.startGame(annId);
+    expect(room.setBotLevel(annId, 1, "easy")?.code).toBe("handInProgress");
+    room.dispose();
+  });
+
+  it("while paused, the bot level can change but game settings can't", () => {
+    const ctx = start(NEXT_WINS);
+    nextSeatWins(ctx, 0);
+    ctx.room.returnToLobby(ctx.ids[0]!);
+    expect(ctx.room.updateSettings(ctx.ids[0]!, { botLevel: "easy" })).toBeNull();
+    expect(ctx.room.updateSettings(ctx.ids[0]!, { dealerKeepsDeal: true })?.code).toBe("notAllowed");
+  });
+
+  it("hard bots play whole hands", async () => {
+    const room = new Room("TEST", OPTIONS);
+    const conn = new FakeConnection();
+    const id = room.join("Ann", undefined, conn);
+    room.updateSettings(id, { botLevel: "hard" });
+    room.addBots(id); // a table of four bots; Ann watches
+    room.startGame(id);
+    // With nobody seated there's no ready-up: hands follow each other until the wind break ends the game.
+    while (conn.lobby.phase !== "gameOver") await sleep(10);
+    expect(conn.lobby.game!.history).toHaveLength(4);
+    expect(conn.lobby.game!.history.some((h) => h.result.kind === "win")).toBe(true);
+    room.dispose();
+  }, 20_000);
+});
+
 describe("hand flow", () => {
   it("sends each seat only its own view and legal actions", () => {
     const { conns } = start(QUIET);
@@ -296,7 +342,7 @@ describe("between hands", () => {
     const keep = setup(DEALER_WINS);
     expect(keep.room.updateSettings(keep.ids[1]!, { dealerKeepsDeal: true })?.code).toBe("notHost");
     expect(keep.room.updateSettings(keep.ids[0]!, { dealerKeepsDeal: true })).toBeNull();
-    expect(keep.conns[1]!.lobby.settings).toEqual({ dealerKeepsDeal: true });
+    expect(keep.conns[1]!.lobby.settings).toMatchObject({ dealerKeepsDeal: true });
     keep.room.startGame(keep.ids[0]!);
     expect(keep.room.updateSettings(keep.ids[0]!, { dealerKeepsDeal: false })?.code).toBe("handInProgress");
     act(keep, 0, { type: "selfDrawWin" });

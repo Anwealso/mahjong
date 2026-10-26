@@ -127,6 +127,8 @@ export async function startServer({
           return fail(room.answerRequest(memberId, message.memberId, message.approve));
         case "updateSettings":
           return fail(room.updateSettings(memberId, message.settings));
+        case "setBotLevel":
+          return fail(room.setBotLevel(memberId, message.seat, message.level));
         case "startGame":
           return fail(room.startGame(memberId));
         case "resumeGame":

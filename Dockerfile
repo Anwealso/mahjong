@@ -3,6 +3,7 @@ FROM node:24-slim AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 COPY packages/engine/package.json packages/engine/
+COPY packages/bots/package.json packages/bots/
 COPY packages/protocol/package.json packages/protocol/
 COPY packages/server/package.json packages/server/
 COPY packages/client/package.json packages/client/

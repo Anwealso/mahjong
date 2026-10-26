@@ -97,6 +97,8 @@ export async function startServer({
         if (session) session.room.disconnect(session.memberId, connection);
         const token = message.t === "join" ? message.sessionToken : undefined;
         session = { room: target, memberId: target.join(message.name, token, connection) };
+        // Whoever creates the room starts in the East seat.
+        if (message.t === "createRoom") target.takeSeat(session.memberId, 0);
         return;
       }
 

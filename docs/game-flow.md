@@ -28,6 +28,7 @@ of a single hand are in [rules.md](rules.md). Decisions: [D22](decisions.md#d22-
 
 - **Scores belong to seats, not people.** Each seat starts the game at 0. Whoever sits in a seat (a person
   or a bot) plays for that seat's score, and someone who takes over a seat inherits its score.
+- Whoever creates the room starts in the East seat (seat 1); they can move or leave it like anyone else.
 - Before a game starts, anyone may take an empty seat or leave theirs. The host can **remove** a player
   (they become a watcher) and **fill empty seats with bots**.
 - Once a game has started, seats change only in the ways described below.

@@ -278,7 +278,8 @@ testing easy and lets three friends play. A person taking a bot's seat replaces 
   `G` or the floating **Group** button. Groups sit to the left of the loose tiles. Ungroup with `G` on the
   selected group or the Ungroup button above it. Discarding or using a grouped tile breaks the group up.
 - **Discarding:** select a tile, then press the **Discard** button floating above it, or `Enter`. Never a
-  single click, so a misclick can't throw a tile away.
+  single click, so a misclick can't throw a tile away. The tile you just drew starts selected, so
+  `Enter` alone throws it straight back.
 - **Claiming:** the claimable discard glows; click it (in the centre or in its pond) or press `Space`.
 - **Using the tile:** with one possible use, its tiles are pre-selected and one click or `Enter`
   confirms. With several, each option is highlighted in its own colour and has a coloured button; click a

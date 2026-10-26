@@ -310,7 +310,8 @@ Code: `packages/client/src`. Rendering only; every rule decision comes from the 
   apart).
 - **Selecting**: click tiles to select them; a **toolbar floats above the selection** with what you can
   do with it: **Discard** (`Enter`), **Group** / **Ungroup** (`G`), **Kong** (four of a kind, `K`), **Add
-  to kong** (`K`). Each group also shows an Ungroup button on hover.
+  to kong** (`K`). Each group also shows an Ungroup button on hover. On each draw the drawn tile starts
+  selected, so `Enter` discards it straight away.
 - **Claiming**: the claimable discard glows in its pond and in the centre, with a countdown ring from
   `claimMsLeft`. Click it or press `Space` to claim; `Esc` passes.
 - **Using a claimed tile** (`hand/claimOptions.ts`): if there's only one way to use it, its tiles are

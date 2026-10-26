@@ -1,7 +1,8 @@
-import { kindCode, kindOf, SEATS, type Seat } from "@mahjong/engine";
+import { kindCode, kindOf, SEATS, winningGroups, type Seat } from "@mahjong/engine";
 import type { RoomView } from "../net/room";
 import { useStore, type GameSnapshot } from "../net/store";
 import { formatPoints, useCountdown, WIND_NAMES } from "../screens/Scoreboard";
+import { Melds, RevealedGroups } from "./Melds";
 
 /**
  * The result of the hand, with running totals. Between hands everyone readies up (the next hand is dealt
@@ -31,6 +32,16 @@ export function HandOver({ game, room, nameOf }: { game: GameSnapshot; room: Roo
   return (
     <div className="hand-over">
       <h2>{headline}</h2>
+      {result.kind === "win" && (
+        <div className="winning-hand">
+          <Melds melds={game.view.players[result.winner]!.melds} size="sm" />
+          <RevealedGroups
+            groups={winningGroups(phase.hands[result.winner]!) ?? [phase.hands[result.winner]!]}
+            size="sm"
+            winningTile={result.tile}
+          />
+        </div>
+      )}
       <table className="scoreboard">
         <thead>
           <tr>

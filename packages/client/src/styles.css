@@ -131,6 +131,7 @@ kbd {
 .meld { display: flex; gap: 1px; }
 .loose-backs { flex-wrap: wrap; }
 .concealed-set { padding: 2px; border-radius: 4px; background: rgb(255 255 255 / 0.12); }
+.revealed-group { padding: 2px; border-radius: 4px; background: rgb(255 255 255 / 0.12); }
 
 .center {
   grid-area: center;
@@ -218,6 +219,7 @@ kbd {
   z-index: 50;
 }
 .hand-over h2 { margin: 0 0 12px; font-size: 1.2rem; }
+.winning-hand { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .hand-over ul { margin: 0; padding-left: 18px; line-height: 1.6; }
 .hand-over-buttons { display: flex; gap: 10px; margin-top: 16px; }
 

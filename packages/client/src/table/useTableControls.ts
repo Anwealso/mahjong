@@ -58,6 +58,12 @@ export function useTableControls(game: GameSnapshot, storageKey: string, act: (a
     else setSelection([]);
   }, [claimKey]);
 
+  // Just drew a tile: pre-select it, so Enter throws it straight back if you don't want it.
+  const drawnKey = myTurn && view.lastDrawn !== null ? view.lastDrawn : null;
+  useEffect(() => {
+    if (drawnKey !== null) setSelection([drawnKey]);
+  }, [drawnKey]);
+
   const chosenOption = options.find((o) => o.key === chosen) ?? null;
 
   function clickTile(tile: TileId) {

@@ -158,7 +158,7 @@ export function LobbyScreen() {
           </p>
           <label className={isHost ? undefined : "muted"}>
             Bot level
-            <LevelPicker
+            <LevelPicker#
               value={lobby.settings.botLevel}
               disabled={!isHost}
               onChange={(botLevel) => send({ t: "updateSettings", settings: { botLevel } })}
@@ -188,6 +188,9 @@ export function LobbyScreen() {
   );
 }
 
+const BOT_LEVELS: BotLevel[] = ["easy", "medium", "hard"];
+const LEVEL_LABELS: Record<BotLevel, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
+
 const LEVEL_HINTS: Record<BotLevel, string> = {
   easy: "Easy bots play like beginners.",
   medium: "Medium bots play for speed.",
@@ -202,9 +205,31 @@ function LevelPicker(props: { value: BotLevel; disabled?: boolean; onChange(leve
       disabled={props.disabled}
       onChange={(e) => props.onChange(e.target.value as BotLevel)}
     >
-      <option value="easy">Easy</option>
-      <option value="medium">Medium</option>
-      <option value="hard">Hard</option>
+      {BOT_LEVELS.map((level) => (
+        <option key={level} value={level}>
+          {LEVEL_LABELS[level]}
+        </option>
+      ))}
     </select>
+  );
+}
+
+/** The room's bot level as a segmented control: one pill per level, the chosen one lit. */
+function LevelSegments(props: { value: BotLevel; disabled?: boolean; onChange(level: BotLevel): void }) {
+  return (
+    <div className="segments" role="radiogroup" aria-labelledby="bot-level">
+      {BOT_LEVELS.map((level) => (
+        <button
+          key={level}
+          role="radio"
+          aria-checked={props.value === level}
+          className={props.value === level ? "on" : undefined}
+          disabled={props.disabled}
+          onClick={() => props.onChange(level)}
+        >
+          {LEVEL_LABELS[level]}
+        </button>
+      ))}
+    </div>
   );
 }

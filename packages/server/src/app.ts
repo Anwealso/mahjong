@@ -105,6 +105,10 @@ export async function startServer({
       if (!session) return fail({ code: "notInRoom", message: "Join a room first" });
       const { room, memberId } = session;
       switch (message.t) {
+        case "leaveRoom":
+          session = null;
+          if (room.leave(memberId)) registry.remove(room.code);
+          return;
         case "takeSeat":
           return fail(room.takeSeat(memberId, message.seat));
         case "leaveSeat":

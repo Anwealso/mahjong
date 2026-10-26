@@ -1,4 +1,5 @@
 import { SEATS } from "@mahjong/engine";
+import type { BotLevel } from "@mahjong/protocol";
 import { useRoom } from "../net/room";
 import { useStore } from "../net/store";
 import { Scoreboard, WIND_GLYPHS } from "./Scoreboard";
@@ -59,6 +60,18 @@ export function LobbyScreen() {
               : "The deal passes on after every hand, so each wind is exactly four hands."}
             {phase === "lobby" ? (isHost ? "" : " Only the host can change settings.") : " Fixed for this game."}
           </p>
+          <label className={isHost ? undefined : "muted"}>
+            Bot level
+            <LevelPicker
+              value={lobby.settings.botLevel}
+              disabled={!isHost}
+              onChange={(botLevel) => send({ t: "updateSettings", settings: { botLevel } })}
+            />
+          </label>
+          <p className="muted small">
+            {LEVEL_HINTS[lobby.settings.botLevel]} Used for new bots and for bots that take over from people;
+            changing it changes every bot.
+          </p>
         </section>
       )}
 
@@ -75,7 +88,15 @@ export function LobbyScreen() {
               <div className="seat-name">
                 {m?.id === lobby.hostId && <span title="Host">👑</span>}
                 {m ? m.name : "Empty"}
-                {m?.bot && <span className="tag">random bot</span>}
+                {m?.bot &&
+                  (isHost && (phase === "lobby" || phase === "paused") ? (
+                    <LevelPicker
+                      value={m.botLevel ?? "medium"}
+                      onChange={(level) => send({ t: "setBotLevel", seat, level })}
+                    />
+                  ) : (
+                    <span className="tag">bot</span>
+                  ))}
                 {m && !m.bot && !m.connected && <span className="tag">offline</span>}
                 {game && <span className="seat-score">{game.scores[seat]! > 0 ? `+${game.scores[seat]}` : game.scores[seat]}</span>}
               </div>
@@ -106,7 +127,7 @@ export function LobbyScreen() {
           (isHost ? (
             <>
               {!full && (
-                <button className="subtle" onClick={() => send({ t: "addBots" })} title="Bots play random legal moves">
+                <button className="subtle" onClick={() => send({ t: "addBots" })}>
                   Fill empty seats with bots
                 </button>
               )}
@@ -145,5 +166,26 @@ export function LobbyScreen() {
         </button>
       </div>
     </main>
+  );
+}
+
+const LEVEL_HINTS: Record<BotLevel, string> = {
+  easy: "Easy bots play like beginners.",
+  medium: "Medium bots play for speed.",
+  hard: "Hard bots play for speed and avoid feeding you wins.",
+};
+
+function LevelPicker(props: { value: BotLevel; disabled?: boolean; onChange(level: BotLevel): void }) {
+  return (
+    <select
+      className="level"
+      value={props.value}
+      disabled={props.disabled}
+      onChange={(e) => props.onChange(e.target.value as BotLevel)}
+    >
+      <option value="easy">Easy</option>
+      <option value="medium">Medium</option>
+      <option value="hard">Hard</option>
+    </select>
   );
 }
